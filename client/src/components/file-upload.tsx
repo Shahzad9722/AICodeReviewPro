@@ -7,9 +7,10 @@ import { useToast } from "@/hooks/use-toast";
 
 interface FileUploadProps {
   onFilesSelected: (files: FileContent[]) => void;
+  allowDirectories?: boolean;
 }
 
-export default function FileUpload({ onFilesSelected }: FileUploadProps) {
+export default function FileUpload({ onFilesSelected, allowDirectories = false }: FileUploadProps) {
   const [dragActive, setDragActive] = useState(false);
   const { toast } = useToast();
   const [selectedFiles, setSelectedFiles] = useState<{ [key: string]: FileContent }>({});
@@ -30,7 +31,7 @@ export default function FileUpload({ onFilesSelected }: FileUploadProps) {
         fileEntry.file(file => {
           filePromises.push(processFile(file, path));
         });
-      } else if (entry.isDirectory) {
+      } else if (entry.isDirectory && allowDirectories) {
         const dirEntry = entry as FileSystemDirectoryEntry;
         const dirReader = dirEntry.createReader();
         await new Promise<void>(resolve => {
@@ -62,7 +63,7 @@ export default function FileUpload({ onFilesSelected }: FileUploadProps) {
     await Promise.all(filePromises);
     setSelectedFiles(prev => ({ ...prev, ...newFiles }));
     onFilesSelected(Object.values(newFiles));
-  }, [onFilesSelected]);
+  }, [onFilesSelected, allowDirectories]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -170,6 +171,7 @@ export default function FileUpload({ onFilesSelected }: FileUploadProps) {
           <input
             type="file"
             multiple
+            {...(allowDirectories ? { webkitdirectory: "", directory: "" } : {})}
             className="hidden"
             onChange={handleChange}
             id="file-upload"
@@ -180,11 +182,17 @@ export default function FileUpload({ onFilesSelected }: FileUploadProps) {
             className="text-lg font-medium mb-2 cursor-pointer hover:text-primary transition-colors"
           >
             {Object.keys(selectedFiles).length === 0
-              ? 'Drop files or folders here, or click to select'
+              ? allowDirectories
+                ? 'Drop project folder here, or click to select'
+                : 'Drop files here, or click to select'
+              : allowDirectories
+              ? 'Drop more folders or click to select'
               : 'Drop more files or click to select'}
           </label>
           <p className="text-sm text-zinc-500">
-            Drag and drop files or entire folders to review
+            {allowDirectories
+              ? 'Drag and drop project folders to review entire applications'
+              : 'Upload individual files for code review'}
           </p>
         </CardContent>
       </Card>

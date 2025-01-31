@@ -34,10 +34,13 @@ const REVIEW_MODES: { value: ReviewMode; label: string }[] = [
   { value: "performance", label: "Performance" },
   { value: "security", label: "Security" },
   { value: "clean-code", label: "Clean Code" },
+  { value: "architecture", label: "Architecture" },
 ];
 
 export default function Home() {
+  const [inputMode, setInputMode] = useState<"paste" | "files" | "project">("paste");
   const [files, setFiles] = useState<FileContent[]>([]);
+  const [pastedCode, setPastedCode] = useState("");
   const [reviewName, setReviewName] = useState("");
   const [description, setDescription] = useState("");
   const [language, setLanguage] = useState("javascript");
@@ -78,7 +81,16 @@ export default function Home() {
   });
 
   const handleReview = async () => {
-    if (files.length === 0) {
+    if (inputMode === "paste" && !pastedCode.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter some code to review",
+      });
+      return;
+    }
+
+    if ((inputMode === "files" || inputMode === "project") && files.length === 0) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -86,6 +98,7 @@ export default function Home() {
       });
       return;
     }
+
     if (!reviewName.trim()) {
       toast({
         variant: "destructive",
@@ -94,13 +107,22 @@ export default function Home() {
       });
       return;
     }
-    reviewMutation.mutate({ files, name: reviewName, description });
+
+    const reviewFiles = inputMode === "paste" 
+      ? [{ path: "code.txt", content: pastedCode }]
+      : files;
+
+    reviewMutation.mutate({ files: reviewFiles, name: reviewName, description });
   };
 
   const handleApplyChange = (suggestion: string) => {
     const codeSnippet = extractCodeFromMarkdown(suggestion);
-    if (codeSnippet && files.length === 1) {
-      setFiles([{ ...files[0], content: codeSnippet }]);
+    if (codeSnippet) {
+      if (inputMode === "paste") {
+        setPastedCode(codeSnippet);
+      } else if (files.length === 1) {
+        setFiles([{ ...files[0], content: codeSnippet }]);
+      }
       toast({
         title: "Success",
         description: "Applied suggested changes to the code",
@@ -109,9 +131,18 @@ export default function Home() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Cannot apply changes to multiple files",
+        description: inputMode === "paste" 
+          ? "No code found in the suggestion"
+          : "Cannot apply changes to multiple files",
       });
     }
+  };
+
+  const handleInputModeChange = (mode: string) => {
+    setInputMode(mode as "paste" | "files" | "project");
+    // Reset state when switching modes
+    setPastedCode("");
+    setFiles([]);
   };
 
   return (
@@ -126,15 +157,15 @@ export default function Home() {
             AI Code Reviewer
           </h1>
           <p className="text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-            Get instant code reviews and suggestions powered by AI. Upload your project files or entire
-            folders and let our AI help you write better code.
+            Get instant code reviews and suggestions powered by AI. Paste code, upload files, or analyze
+            entire projects with our intelligent code review system.
           </p>
         </motion.div>
 
         <div className="grid gap-8">
           <Card className="border-2 border-zinc-800 shadow-2xl bg-zinc-900/50 backdrop-blur-sm">
             <CardHeader className="pb-4 space-y-6">
-              <CardTitle className="text-3xl font-bold text-zinc-100">Project Review</CardTitle>
+              <CardTitle className="text-3xl font-bold text-zinc-100">Code Review</CardTitle>
               <div className="grid gap-4">
                 <div className="flex flex-col space-y-2">
                   <label htmlFor="review-name" className="text-sm font-medium text-zinc-400">
@@ -194,9 +225,50 @@ export default function Home() {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="bg-zinc-800/60 rounded-lg p-1">
-                <FileUpload onFilesSelected={setFiles} />
-              </div>
+              <Tabs value={inputMode} onValueChange={handleInputModeChange} className="w-full">
+                <TabsList className="w-full justify-start mb-6 bg-zinc-800/80 rounded-lg p-1">
+                  <TabsTrigger 
+                    value="paste"
+                    className="data-[state=active]:bg-primary data-[state=active]:text-white 
+                      data-[state=active]:shadow-lg transition-all duration-200 px-6"
+                  >
+                    Paste Code
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="files"
+                    className="data-[state=active]:bg-primary data-[state=active]:text-white 
+                      data-[state=active]:shadow-lg transition-all duration-200 px-6"
+                  >
+                    Upload Files
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="project"
+                    className="data-[state=active]:bg-primary data-[state=active]:text-white 
+                      data-[state=active]:shadow-lg transition-all duration-200 px-6"
+                  >
+                    Upload Project
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="paste">
+                  <div className="bg-zinc-800/60 rounded-lg p-1">
+                    <CodeEditor code={pastedCode} onChange={setPastedCode} />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="files">
+                  <div className="bg-zinc-800/60 rounded-lg p-1">
+                    <FileUpload onFilesSelected={setFiles} allowDirectories={false} />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="project">
+                  <div className="bg-zinc-800/60 rounded-lg p-1">
+                    <FileUpload onFilesSelected={setFiles} allowDirectories={true} />
+                  </div>
+                </TabsContent>
+              </Tabs>
+
               <div className="flex justify-between items-center pt-4">
                 <Button
                   variant="outline"
@@ -213,7 +285,11 @@ export default function Home() {
                 </Button>
                 <Button
                   onClick={handleReview}
-                  disabled={reviewMutation.isPending || files.length === 0 || !reviewName.trim()}
+                  disabled={
+                    reviewMutation.isPending || 
+                    !reviewName.trim() || 
+                    (inputMode === "paste" ? !pastedCode.trim() : files.length === 0)
+                  }
                   size="lg"
                   className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-xl 
                     hover:shadow-2xl transition-all duration-200 px-8 py-6 disabled:opacity-50"
@@ -247,7 +323,7 @@ export default function Home() {
                     <Tabs defaultValue="suggestions" className="w-full">
                       <TabsList className="w-full justify-start mb-6 bg-zinc-800/80 rounded-lg p-1">
                         <TabsTrigger 
-                          value="suggestions" 
+                          value="suggestions"
                           className="data-[state=active]:bg-primary data-[state=active]:text-white 
                             data-[state=active]:shadow-lg transition-all duration-200 px-6"
                         >
@@ -286,14 +362,24 @@ export default function Home() {
                         <ReviewDisplay
                           title="Code Suggestions"
                           content={reviewMutation.data.suggestions}
-                          onApplyChange={files.length === 1 ? handleApplyChange : undefined}
+                          onApplyChange={
+                            inputMode === "paste" || 
+                            (inputMode === "files" && files.length === 1)
+                              ? handleApplyChange
+                              : undefined
+                          }
                         />
                       </TabsContent>
                       <TabsContent value="improvements">
                         <ReviewDisplay
                           title="Possible Improvements"
                           content={reviewMutation.data.improvements}
-                          onApplyChange={files.length === 1 ? handleApplyChange : undefined}
+                          onApplyChange={
+                            inputMode === "paste" || 
+                            (inputMode === "files" && files.length === 1)
+                              ? handleApplyChange
+                              : undefined
+                          }
                         />
                       </TabsContent>
                       <TabsContent value="architecture">
