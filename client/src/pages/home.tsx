@@ -10,6 +10,12 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
 
+const extractCodeFromMarkdown = (markdown: string): string | null => {
+  const codeBlockRegex = /```(?:javascript|typescript|js|ts)?\n([\s\S]*?)```/;
+  const match = markdown.match(codeBlockRegex);
+  return match ? match[1].trim() : null;
+};
+
 export default function Home() {
   const [code, setCode] = useState("");
   const { toast } = useToast();
@@ -38,6 +44,23 @@ export default function Home() {
       return;
     }
     reviewMutation.mutate(code);
+  };
+
+  const handleApplyChange = (suggestion: string) => {
+    const codeSnippet = extractCodeFromMarkdown(suggestion);
+    if (codeSnippet) {
+      setCode(codeSnippet);
+      toast({
+        title: "Success",
+        description: "Applied suggested changes to the code",
+      });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No code found in the suggestion",
+      });
+    }
   };
 
   return (
@@ -92,18 +115,21 @@ export default function Home() {
                   <ReviewDisplay
                     title="Code Suggestions"
                     content={reviewMutation.data.suggestions}
+                    onApplyChange={handleApplyChange}
                   />
                 </TabsContent>
                 <TabsContent value="improvements">
                   <ReviewDisplay
                     title="Possible Improvements"
                     content={reviewMutation.data.improvements}
+                    onApplyChange={handleApplyChange}
                   />
                 </TabsContent>
                 <TabsContent value="security">
                   <ReviewDisplay
                     title="Security Considerations"
                     content={reviewMutation.data.security}
+                    onApplyChange={handleApplyChange}
                   />
                 </TabsContent>
               </Tabs>
