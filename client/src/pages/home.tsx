@@ -108,7 +108,7 @@ export default function Home() {
       return;
     }
 
-    const reviewFiles = inputMode === "paste" 
+    const reviewFiles = inputMode === "paste"
       ? [{ path: "code.txt", content: pastedCode }]
       : files;
 
@@ -131,7 +131,7 @@ export default function Home() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: inputMode === "paste" 
+        description: inputMode === "paste"
           ? "No code found in the suggestion"
           : "Cannot apply changes to multiple files",
       });
@@ -227,21 +227,21 @@ export default function Home() {
             <CardContent className="space-y-6">
               <Tabs value={inputMode} onValueChange={handleInputModeChange} className="w-full">
                 <TabsList className="w-full justify-start mb-6 bg-zinc-800/80 rounded-lg p-1">
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="paste"
                     className="data-[state=active]:bg-primary data-[state=active]:text-white 
                       data-[state=active]:shadow-lg transition-all duration-200 px-6"
                   >
                     Paste Code
                   </TabsTrigger>
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="files"
                     className="data-[state=active]:bg-primary data-[state=active]:text-white 
                       data-[state=active]:shadow-lg transition-all duration-200 px-6"
                   >
                     Upload Files
                   </TabsTrigger>
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="project"
                     className="data-[state=active]:bg-primary data-[state=active]:text-white 
                       data-[state=active]:shadow-lg transition-all duration-200 px-6"
@@ -286,9 +286,10 @@ export default function Home() {
                 <Button
                   onClick={handleReview}
                   disabled={
-                    reviewMutation.isPending || 
-                    !reviewName.trim() || 
-                    (inputMode === "paste" ? !pastedCode.trim() : files.length === 0)
+                    reviewMutation.isPending ||
+                    !reviewName.trim() ||
+                    (inputMode === "paste" && !pastedCode.trim()) ||
+                    ((inputMode === "files" || inputMode === "project") && (!files || files.length === 0))
                   }
                   size="lg"
                   className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-xl 
@@ -322,35 +323,35 @@ export default function Home() {
                   <CardContent>
                     <Tabs defaultValue="suggestions" className="w-full">
                       <TabsList className="w-full justify-start mb-6 bg-zinc-800/80 rounded-lg p-1">
-                        <TabsTrigger 
+                        <TabsTrigger
                           value="suggestions"
                           className="data-[state=active]:bg-primary data-[state=active]:text-white 
                             data-[state=active]:shadow-lg transition-all duration-200 px-6"
                         >
                           Suggestions
                         </TabsTrigger>
-                        <TabsTrigger 
+                        <TabsTrigger
                           value="improvements"
                           className="data-[state=active]:bg-primary data-[state=active]:text-white 
                             data-[state=active]:shadow-lg transition-all duration-200 px-6"
                         >
                           Improvements
                         </TabsTrigger>
-                        <TabsTrigger 
+                        <TabsTrigger
                           value="architecture"
                           className="data-[state=active]:bg-primary data-[state=active]:text-white 
                             data-[state=active]:shadow-lg transition-all duration-200 px-6"
                         >
                           Architecture
                         </TabsTrigger>
-                        <TabsTrigger 
+                        <TabsTrigger
                           value="security"
                           className="data-[state=active]:bg-primary data-[state=active]:text-white 
                             data-[state=active]:shadow-lg transition-all duration-200 px-6"
                         >
                           Security
                         </TabsTrigger>
-                        <TabsTrigger 
+                        <TabsTrigger
                           value="dependencies"
                           className="data-[state=active]:bg-primary data-[state=active]:text-white 
                             data-[state=active]:shadow-lg transition-all duration-200 px-6"
@@ -363,7 +364,7 @@ export default function Home() {
                           title="Code Suggestions"
                           content={reviewMutation.data.suggestions}
                           onApplyChange={
-                            inputMode === "paste" || 
+                            inputMode === "paste" ||
                             (inputMode === "files" && files.length === 1)
                               ? handleApplyChange
                               : undefined
@@ -375,7 +376,7 @@ export default function Home() {
                           title="Possible Improvements"
                           content={reviewMutation.data.improvements}
                           onApplyChange={
-                            inputMode === "paste" || 
+                            inputMode === "paste" ||
                             (inputMode === "files" && files.length === 1)
                               ? handleApplyChange
                               : undefined
