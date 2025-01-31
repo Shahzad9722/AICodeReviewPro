@@ -3,8 +3,9 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Increase JSON payload size limit to 50MB
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -39,25 +40,29 @@ app.use((req, res, next) => {
 (async () => {
   const server = registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  // Add specific error handler for payload too large errors
+  app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+    if (err.type === 'entity.too.large') {
+      return res.status(413).json({
+        message: "Request entity too large. The maximum allowed size is 50MB."
+      });
+    }
+
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
-    throw err;
+    if (status === 500) {
+      throw err;
+    }
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client
   const PORT = 5000;
   server.listen(PORT, "0.0.0.0", () => {
     log(`serving on port ${PORT}`);
