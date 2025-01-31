@@ -1,8 +1,9 @@
 import OpenAI from "openai";
-import type { CodeReviewResponse, FileContent } from "../client/src/lib/openai";
+import "dotenv/config";
+import type {CodeReviewResponse, FileContent} from "../client/src/lib/openai";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({apiKey: process.env.OPENAI_API_KEY});
 
 const REVIEW_PROMPTS = {
   general: `You are an expert code reviewer analyzing code. For each suggestion:
@@ -38,7 +39,7 @@ const REVIEW_PROMPTS = {
 
 export type ReviewMode = keyof typeof REVIEW_PROMPTS;
 
-function createFileContext(files: FileContent[]): string {
+function createFileContext (files: FileContent[]): string {
   return files
     .filter(file => {
       const ext = file.path.split('.').pop()?.toLowerCase();
@@ -55,7 +56,7 @@ function createFileContext(files: FileContent[]): string {
     .join('\n\n');
 }
 
-export async function analyzeCode(
+export async function analyzeCode (
   files: FileContent[],
   mode: ReviewMode = "general",
   language = "javascript"
@@ -100,8 +101,8 @@ ${fileContext}`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages: [{ role: "system", content: systemMessage }],
-      response_format: { type: "json_object" },
+      messages: [{role: "system", content: systemMessage}],
+      response_format: {type: "json_object"},
       max_tokens: 4000,
       temperature: 0.5
     });
