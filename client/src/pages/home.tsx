@@ -24,7 +24,7 @@ const extractFileInfoFromMarkdown = (markdown: string): { path?: string; code?: 
   const filePath = filePathMatch ? filePathMatch[1] : undefined;
 
   // Check if this is a full file replacement or partial change
-  const isFullFile = markdown.toLowerCase().includes("entire file") || 
+  const isFullFile = markdown.toLowerCase().includes("entire file") ||
                     markdown.toLowerCase().includes("full file") ||
                     markdown.toLowerCase().includes("complete file");
 
@@ -195,47 +195,7 @@ export default function Home() {
     }
 
     if (inputMode === "paste") {
-      // For paste mode, try to intelligently merge changes
-      if (isFullFile) {
-        setPastedCode(codeSnippet);
-      } else {
-        // Try to merge the changes
-        const lines = pastedCode.split('\n');
-        const snippetLines = codeSnippet.split('\n');
-
-        // If the snippet is small compared to the original, treat it as a partial change
-        if (snippetLines.length < lines.length / 2) {
-          // Find a matching context in the original code
-          let bestMatchIndex = -1;
-          let bestMatchScore = 0;
-
-          for (let i = 0; i < lines.length - snippetLines.length + 1; i++) {
-            let score = 0;
-            for (let j = 0; j < snippetLines.length; j++) {
-              if (lines[i + j].trim() === snippetLines[j].trim()) {
-                score++;
-              }
-            }
-            if (score > bestMatchScore) {
-              bestMatchScore = score;
-              bestMatchIndex = i;
-            }
-          }
-
-          if (bestMatchIndex !== -1) {
-            const newLines = [...lines];
-            newLines.splice(bestMatchIndex, snippetLines.length, ...snippetLines);
-            setPastedCode(newLines.join('\n'));
-          } else {
-            // If no good match found, append the changes
-            setPastedCode(pastedCode + '\n\n' + codeSnippet);
-          }
-        } else {
-          // If the snippet is large, treat it as a full replacement
-          setPastedCode(codeSnippet);
-        }
-      }
-
+      setPastedCode(codeSnippet);
       toast({
         title: "Success",
         description: "Applied changes to the code",
@@ -261,7 +221,7 @@ export default function Home() {
       return;
     }
 
-    const fileToUpdate = files.find(file => 
+    const fileToUpdate = files.find(file =>
       file.path.endsWith(suggestedPath) || suggestedPath.endsWith(file.path)
     );
 
@@ -274,8 +234,8 @@ export default function Home() {
       return;
     }
 
-    setFiles(files.map(file => 
-      file.path === fileToUpdate.path 
+    setFiles(files.map(file =>
+      file.path === fileToUpdate.path
         ? { ...file, content: codeSnippet }
         : file
     ));
@@ -545,24 +505,16 @@ export default function Home() {
                           <ReviewDisplay
                             title="Code Suggestions"
                             content={reviewMutation.data?.suggestions}
-                            onApplyChange={
-                              inputMode === "paste" ||
-                              (inputMode === "files" && files.length === 1)
-                                ? handleApplyChange
-                                : undefined
-                            }
+                            originalCode={inputMode === "paste" ? pastedCode : files[0]?.content || ""}
+                            onApplyChange={handleApplyChange}
                           />
                         </TabsContent>
                         <TabsContent value="improvements">
                           <ReviewDisplay
                             title="Possible Improvements"
                             content={reviewMutation.data?.improvements}
-                            onApplyChange={
-                              inputMode === "paste" ||
-                              (inputMode === "files" && files.length === 1)
-                                ? handleApplyChange
-                                : undefined
-                            }
+                            originalCode={inputMode === "paste" ? pastedCode : files[0]?.content || ""}
+                            onApplyChange={handleApplyChange}
                           />
                         </TabsContent>
                         <TabsContent value="architecture">
