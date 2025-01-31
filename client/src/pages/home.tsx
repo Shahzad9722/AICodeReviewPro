@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import CodeEditor from "@/components/code-editor";
 import ReviewDisplay from "@/components/review-display";
@@ -54,20 +57,18 @@ export default function Home() {
     mutationFn: async (data: { files: FileContent[]; name: string; description: string }) => {
       const startTime = Date.now();
 
-      // Show initial toast
       toast({
         title: "Analysis Started",
         description: `Analyzing ${data.files.length} file(s)...`,
       });
 
-      // Set up progress updates
       const progressInterval = setInterval(() => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         toast({
           title: "Analysis in Progress",
           description: `Still analyzing... (${elapsed}s)`,
         });
-      }, 10000); // Update every 10 seconds
+      }, 10000); 
 
       try {
         const response = await apiRequest("POST", "/api/review", {
@@ -103,7 +104,6 @@ export default function Home() {
     },
   });
 
-  // Add debug logs to track state
   useEffect(() => {
     console.log("Current state:", {
       inputMode,
@@ -174,7 +174,6 @@ export default function Home() {
 
   const handleInputModeChange = (mode: string) => {
     setInputMode(mode as "paste" | "files" | "project");
-    // Reset state when switching modes
     setPastedCode("");
     setFiles([]);
   };
@@ -200,61 +199,74 @@ export default function Home() {
           <Card className="border-2 border-zinc-800 shadow-2xl bg-zinc-900/50 backdrop-blur-sm">
             <CardHeader className="pb-4 space-y-6">
               <CardTitle className="text-3xl font-bold text-zinc-100">Code Review</CardTitle>
-              <div className="grid gap-4">
-                <div className="flex flex-col space-y-2">
-                  <label htmlFor="review-name" className="text-sm font-medium text-zinc-400">
-                    Review Name
-                  </label>
-                  <input
+              <div className="grid gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="review-name" className="text-sm font-medium text-zinc-300">
+                    Review Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
                     id="review-name"
                     type="text"
                     value={reviewName}
                     onChange={(e) => setReviewName(e.target.value)}
-                    className="rounded-md bg-zinc-800/80 border-zinc-700 focus:border-primary/40 transition-colors"
+                    className={`bg-zinc-800/80 border-zinc-700 focus:border-primary/40 transition-colors
+                      ${!reviewName.trim() && "border-red-500/50"}`}
                     placeholder="Enter a name for this review"
                   />
+                  {!reviewName.trim() && (
+                    <p className="text-sm text-red-400 mt-1">Review name is required</p>
+                  )}
                 </div>
 
-                <div className="flex flex-col space-y-2">
-                  <label htmlFor="description" className="text-sm font-medium text-zinc-400">
-                    Description (Optional)
-                  </label>
-                  <textarea
+                <div className="space-y-2">
+                  <Label htmlFor="description" className="text-sm font-medium text-zinc-300">
+                    Description
+                  </Label>
+                  <Textarea
                     id="description"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    className="rounded-md bg-zinc-800/80 border-zinc-700 focus:border-primary/40 transition-colors"
-                    placeholder="Add a description for this review"
-                    rows={3}
+                    className="min-h-[100px] bg-zinc-800/80 border-zinc-700 focus:border-primary/40 transition-colors resize-y"
+                    placeholder="Add a description for this review (optional)"
                   />
                 </div>
 
                 <div className="flex flex-wrap gap-4">
-                  <Select value={language} onValueChange={setLanguage}>
-                    <SelectTrigger className="w-[180px] bg-zinc-800/80 border-zinc-700 hover:border-primary/40 transition-colors">
-                      <SelectValue placeholder="Select language" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LANGUAGES.map((lang) => (
-                        <SelectItem key={lang.value} value={lang.value} className="cursor-pointer">
-                          {lang.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-zinc-300">
+                      Language <span className="text-red-500">*</span>
+                    </Label>
+                    <Select value={language} onValueChange={setLanguage}>
+                      <SelectTrigger className="w-[180px] bg-zinc-800/80 border-zinc-700 hover:border-primary/40 transition-colors">
+                        <SelectValue placeholder="Select language" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LANGUAGES.map((lang) => (
+                          <SelectItem key={lang.value} value={lang.value} className="cursor-pointer">
+                            {lang.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                  <Select value={mode} onValueChange={(value) => setMode(value as ReviewMode)}>
-                    <SelectTrigger className="w-[180px] bg-zinc-800/80 border-zinc-700 hover:border-primary/40 transition-colors">
-                      <SelectValue placeholder="Select review mode" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {REVIEW_MODES.map((mode) => (
-                        <SelectItem key={mode.value} value={mode.value} className="cursor-pointer">
-                          {mode.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-zinc-300">
+                      Review Mode <span className="text-red-500">*</span>
+                    </Label>
+                    <Select value={mode} onValueChange={(value) => setMode(value as ReviewMode)}>
+                      <SelectTrigger className="w-[180px] bg-zinc-800/80 border-zinc-700 hover:border-primary/40 transition-colors">
+                        <SelectValue placeholder="Select review mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {REVIEW_MODES.map((mode) => (
+                          <SelectItem key={mode.value} value={mode.value} className="cursor-pointer">
+                            {mode.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             </CardHeader>
@@ -338,7 +350,6 @@ export default function Home() {
                     "Review Code"
                   )}
                 </Button>
-                {/* Add helper text to show why button might be disabled */}
                 {!reviewName.trim() && (
                   <p className="text-sm text-red-400 mt-2">Please enter a review name</p>
                 )}
