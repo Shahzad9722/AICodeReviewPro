@@ -38,7 +38,7 @@ const item = {
 export default function ReviewDisplay({ title, content, onApplyChange }: ReviewDisplayProps) {
   return (
     <div className="space-y-6">
-      <h3 className="text-2xl font-bold text-foreground mb-4">{title}</h3>
+      <h3 className="text-2xl font-bold text-zinc-100 mb-4">{title}</h3>
       <motion.div
         variants={container}
         initial="hidden"
@@ -47,18 +47,13 @@ export default function ReviewDisplay({ title, content, onApplyChange }: ReviewD
       >
         {content.map((suggestion, index) => (
           <motion.div key={index} variants={item}>
-            <Card className="p-6 hover:shadow-2xl transition-all duration-300 border-2 
-              border-primary/10 hover:border-primary/20 bg-background/40 backdrop-blur-sm">
+            <Card className="p-6 hover:shadow-2xl transition-all duration-300 border-2 border-zinc-800 hover:border-zinc-700 bg-zinc-900/50 backdrop-blur-sm">
               <div className="flex justify-between items-start gap-6">
                 <ReactMarkdown
-                  className="prose prose-sm max-w-none dark:prose-invert flex-1 
-                    prose-pre:bg-background/60 prose-pre:border prose-pre:border-primary/20 
-                    prose-code:text-primary prose-headings:text-foreground/90
-                    prose-a:text-primary hover:prose-a:text-primary/90
-                    prose-strong:text-foreground/90"
+                  className="prose prose-sm max-w-none prose-invert flex-1 prose-pre:bg-zinc-800/60 prose-pre:border prose-pre:border-zinc-700 prose-code:text-primary prose-headings:text-zinc-200 prose-a:text-primary hover:prose-a:text-primary/90 prose-strong:text-zinc-200 prose-p:text-zinc-300"
                   components={{
                     code: ({ children }) => (
-                      <code className="bg-background/60 px-2 py-0.5 rounded-md text-sm font-mono text-primary">
+                      <code className="bg-zinc-800/60 px-2 py-0.5 rounded-md text-sm font-mono text-primary">
                         {children}
                       </code>
                     ),
@@ -71,9 +66,7 @@ export default function ReviewDisplay({ title, content, onApplyChange }: ReviewD
                     onClick={() => onApplyChange(suggestion)}
                     variant="outline"
                     size="sm"
-                    className="shrink-0 hover:bg-primary/15 hover:text-primary border-primary/20 
-                      hover:border-primary/40 transition-all duration-200 shadow-lg hover:shadow-xl
-                      bg-background/60"
+                    className="shrink-0 hover:bg-primary/15 hover:text-primary border-zinc-700 hover:border-primary/40 transition-all duration-200 shadow-lg hover:shadow-xl bg-zinc-800/60"
                   >
                     <Check className="h-4 w-4 mr-2" />
                     Apply
