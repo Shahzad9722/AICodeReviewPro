@@ -12,6 +12,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { Loader2, Save } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { ReviewMode } from "@/lib/openai";
+import FileUpload from "@/components/file-upload";
+import type { FileContent } from "@/lib/openai";
 
 const extractCodeFromMarkdown = (markdown: string): string | null => {
   const codeBlockRegex = /```(?:javascript|typescript|js|ts)?\n([\s\S]*?)```/;
@@ -35,7 +37,9 @@ const REVIEW_MODES: { value: ReviewMode; label: string }[] = [
 ];
 
 export default function Home() {
-  const [code, setCode] = useState("");
+  const [files, setFiles] = useState<FileContent[]>([]);
+  const [reviewName, setReviewName] = useState("");
+  const [description, setDescription] = useState("");
   const [language, setLanguage] = useState("javascript");
   const [mode, setMode] = useState<ReviewMode>("general");
   const [saveReview, setSaveReview] = useState(false);
@@ -44,9 +48,11 @@ export default function Home() {
   const formId = useId();
 
   const reviewMutation = useMutation({
-    mutationFn: async (code: string) => {
+    mutationFn: async (data: { files: FileContent[]; name: string; description: string }) => {
       const response = await apiRequest("POST", "/api/review", {
-        code,
+        files: data.files,
+        name: data.name,
+        description: data.description,
         mode,
         language,
         save: saveReview,
@@ -72,21 +78,29 @@ export default function Home() {
   });
 
   const handleReview = async () => {
-    if (!code.trim()) {
+    if (files.length === 0) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Please enter some code to review",
+        description: "Please select some files to review",
       });
       return;
     }
-    reviewMutation.mutate(code);
+    if (!reviewName.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter a name for this review",
+      });
+      return;
+    }
+    reviewMutation.mutate({ files, name: reviewName, description });
   };
 
   const handleApplyChange = (suggestion: string) => {
     const codeSnippet = extractCodeFromMarkdown(suggestion);
-    if (codeSnippet) {
-      setCode(codeSnippet);
+    if (codeSnippet && files.length === 1) {
+      setFiles([{ ...files[0], content: codeSnippet }]);
       toast({
         title: "Success",
         description: "Applied suggested changes to the code",
@@ -95,7 +109,7 @@ export default function Home() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "No code found in the suggestion",
+        description: "Cannot apply changes to multiple files",
       });
     }
   };
@@ -112,46 +126,76 @@ export default function Home() {
             AI Code Reviewer
           </h1>
           <p className="text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-            Get instant code reviews and suggestions powered by AI. Choose a review mode and let our AI
-            help you write better code.
+            Get instant code reviews and suggestions powered by AI. Upload your project files or entire
+            folders and let our AI help you write better code.
           </p>
         </motion.div>
 
         <div className="grid gap-8">
           <Card className="border-2 border-zinc-800 shadow-2xl bg-zinc-900/50 backdrop-blur-sm">
             <CardHeader className="pb-4 space-y-6">
-              <CardTitle className="text-3xl font-bold text-zinc-100">Code Input</CardTitle>
-              <div className="flex flex-wrap gap-4">
-                <Select value={language} onValueChange={setLanguage}>
-                  <SelectTrigger className="w-[180px] bg-zinc-800/80 border-zinc-700 hover:border-primary/40 transition-colors">
-                    <SelectValue placeholder="Select language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LANGUAGES.map((lang) => (
-                      <SelectItem key={lang.value} value={lang.value} className="cursor-pointer">
-                        {lang.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <CardTitle className="text-3xl font-bold text-zinc-100">Project Review</CardTitle>
+              <div className="grid gap-4">
+                <div className="flex flex-col space-y-2">
+                  <label htmlFor="review-name" className="text-sm font-medium text-zinc-400">
+                    Review Name
+                  </label>
+                  <input
+                    id="review-name"
+                    type="text"
+                    value={reviewName}
+                    onChange={(e) => setReviewName(e.target.value)}
+                    className="rounded-md bg-zinc-800/80 border-zinc-700 focus:border-primary/40 transition-colors"
+                    placeholder="Enter a name for this review"
+                  />
+                </div>
 
-                <Select value={mode} onValueChange={(value) => setMode(value as ReviewMode)}>
-                  <SelectTrigger className="w-[180px] bg-zinc-800/80 border-zinc-700 hover:border-primary/40 transition-colors">
-                    <SelectValue placeholder="Select review mode" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {REVIEW_MODES.map((mode) => (
-                      <SelectItem key={mode.value} value={mode.value} className="cursor-pointer">
-                        {mode.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex flex-col space-y-2">
+                  <label htmlFor="description" className="text-sm font-medium text-zinc-400">
+                    Description (Optional)
+                  </label>
+                  <textarea
+                    id="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="rounded-md bg-zinc-800/80 border-zinc-700 focus:border-primary/40 transition-colors"
+                    placeholder="Add a description for this review"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-4">
+                  <Select value={language} onValueChange={setLanguage}>
+                    <SelectTrigger className="w-[180px] bg-zinc-800/80 border-zinc-700 hover:border-primary/40 transition-colors">
+                      <SelectValue placeholder="Select language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LANGUAGES.map((lang) => (
+                        <SelectItem key={lang.value} value={lang.value} className="cursor-pointer">
+                          {lang.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={mode} onValueChange={(value) => setMode(value as ReviewMode)}>
+                    <SelectTrigger className="w-[180px] bg-zinc-800/80 border-zinc-700 hover:border-primary/40 transition-colors">
+                      <SelectValue placeholder="Select review mode" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {REVIEW_MODES.map((mode) => (
+                        <SelectItem key={mode.value} value={mode.value} className="cursor-pointer">
+                          {mode.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="bg-zinc-800/60 rounded-lg p-1">
-                <CodeEditor code={code} onChange={setCode} />
+                <FileUpload onFilesSelected={setFiles} />
               </div>
               <div className="flex justify-between items-center pt-4">
                 <Button
@@ -169,7 +213,7 @@ export default function Home() {
                 </Button>
                 <Button
                   onClick={handleReview}
-                  disabled={reviewMutation.isPending || !code.trim()}
+                  disabled={reviewMutation.isPending || files.length === 0 || !reviewName.trim()}
                   size="lg"
                   className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-xl 
                     hover:shadow-2xl transition-all duration-200 px-8 py-6 disabled:opacity-50"
@@ -217,32 +261,57 @@ export default function Home() {
                           Improvements
                         </TabsTrigger>
                         <TabsTrigger 
+                          value="architecture"
+                          className="data-[state=active]:bg-primary data-[state=active]:text-white 
+                            data-[state=active]:shadow-lg transition-all duration-200 px-6"
+                        >
+                          Architecture
+                        </TabsTrigger>
+                        <TabsTrigger 
                           value="security"
                           className="data-[state=active]:bg-primary data-[state=active]:text-white 
                             data-[state=active]:shadow-lg transition-all duration-200 px-6"
                         >
                           Security
                         </TabsTrigger>
+                        <TabsTrigger 
+                          value="dependencies"
+                          className="data-[state=active]:bg-primary data-[state=active]:text-white 
+                            data-[state=active]:shadow-lg transition-all duration-200 px-6"
+                        >
+                          Dependencies
+                        </TabsTrigger>
                       </TabsList>
                       <TabsContent value="suggestions">
                         <ReviewDisplay
                           title="Code Suggestions"
                           content={reviewMutation.data.suggestions}
-                          onApplyChange={handleApplyChange}
+                          onApplyChange={files.length === 1 ? handleApplyChange : undefined}
                         />
                       </TabsContent>
                       <TabsContent value="improvements">
                         <ReviewDisplay
                           title="Possible Improvements"
                           content={reviewMutation.data.improvements}
-                          onApplyChange={handleApplyChange}
+                          onApplyChange={files.length === 1 ? handleApplyChange : undefined}
+                        />
+                      </TabsContent>
+                      <TabsContent value="architecture">
+                        <ReviewDisplay
+                          title="Architecture Review"
+                          content={reviewMutation.data.architecture}
                         />
                       </TabsContent>
                       <TabsContent value="security">
                         <ReviewDisplay
                           title="Security Considerations"
                           content={reviewMutation.data.security}
-                          onApplyChange={handleApplyChange}
+                        />
+                      </TabsContent>
+                      <TabsContent value="dependencies">
+                        <ReviewDisplay
+                          title="Dependencies Analysis"
+                          content={reviewMutation.data.dependencies}
                         />
                       </TabsContent>
                     </Tabs>
