@@ -18,10 +18,15 @@ import type { ReviewMode } from "@/lib/openai";
 import FileUpload from "@/components/file-upload";
 import type { FileContent } from "@/lib/openai";
 
-const extractCodeFromMarkdown = (markdown: string): string | null => {
+const extractFileInfoFromMarkdown = (markdown: string): { path?: string; code?: string } => {
+  const filePathMatch = markdown.match(/[`']([^`']+\.[a-zA-Z]+)[`']/);
+  const filePath = filePathMatch ? filePathMatch[1] : undefined;
+
   const codeBlockRegex = /```(?:javascript|typescript|js|ts)?\n([\s\S]*?)```/;
-  const match = markdown.match(codeBlockRegex);
-  return match ? match[1].trim() : null;
+  const codeMatch = markdown.match(codeBlockRegex);
+  const code = codeMatch ? codeMatch[1].trim() : undefined;
+
+  return { path: filePath, code };
 };
 
 const LANGUAGES = [
@@ -106,7 +111,6 @@ export default function Home() {
           description: "Review completed and saved successfully",
         });
       }
-      // Scroll to results
       setTimeout(() => {
         resultsRef.current?.scrollIntoView({
           behavior: 'smooth',
@@ -124,7 +128,6 @@ export default function Home() {
   });
 
   const handleReview = async () => {
-    // Mark all fields as touched when submitting
     setTouchedFields(new Set(['reviewName', 'code']));
 
     if (inputMode === "paste" && !pastedCode.trim()) {
@@ -162,26 +165,67 @@ export default function Home() {
   };
 
   const handleApplyChange = (suggestion: string) => {
-    const codeSnippet = extractCodeFromMarkdown(suggestion);
-    if (codeSnippet) {
-      if (inputMode === "paste") {
-        setPastedCode(codeSnippet);
-      } else if (files.length === 1) {
-        setFiles([{ ...files[0], content: codeSnippet }]);
-      }
-      toast({
-        title: "Success",
-        description: "Applied suggested changes to the code",
-      });
-    } else {
+    const { path: suggestedPath, code: codeSnippet } = extractFileInfoFromMarkdown(suggestion);
+
+    if (!codeSnippet) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: inputMode === "paste"
-          ? "No code found in the suggestion"
-          : "Cannot apply changes to multiple files",
+        description: "No code found in the suggestion",
       });
+      return;
     }
+
+    if (inputMode === "paste") {
+      setPastedCode(codeSnippet);
+      toast({
+        title: "Success",
+        description: "Applied changes to the code",
+      });
+      return;
+    }
+
+    if (files.length === 1) {
+      setFiles([{ ...files[0], content: codeSnippet }]);
+      toast({
+        title: "Success",
+        description: "Applied changes to the file",
+      });
+      return;
+    }
+
+    if (!suggestedPath) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not determine which file to update",
+      });
+      return;
+    }
+
+    const fileToUpdate = files.find(file => 
+      file.path.endsWith(suggestedPath) || suggestedPath.endsWith(file.path)
+    );
+
+    if (!fileToUpdate) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Could not find a matching file for ${suggestedPath}`,
+      });
+      return;
+    }
+
+    setFiles(files.map(file => 
+      file.path === fileToUpdate.path 
+        ? { ...file, content: codeSnippet }
+        : file
+    ));
+
+    toast({
+      title: "Success",
+      description: `Applied changes to ${fileToUpdate.path}`,
+    });
   };
 
   const handleInputModeChange = (mode: string) => {
@@ -335,7 +379,6 @@ export default function Home() {
               </Tabs>
 
               <div className="flex flex-col space-y-4">
-                {/* Error messages section */}
                 <div className="space-y-2">
                   {!reviewName.trim() && showError('reviewName') && (
                     <p className="text-sm text-red-400">Please enter a review name</p>
