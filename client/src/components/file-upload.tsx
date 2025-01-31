@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Upload, File, Folder, X } from "lucide-react";
 import type { FileContent } from "@/lib/openai";
 import { useToast } from "@/hooks/use-toast";
+import { Progress } from "@/components/ui/progress";
 
 interface FileUploadProps {
   onFilesSelected: (files: FileContent[]) => void;
@@ -30,11 +31,18 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
   const { toast } = useToast();
   const [selectedFiles, setSelectedFiles] = useState<{ [key: string]: FileContent }>({});
   const [totalSize, setTotalSize] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [processedFiles, setProcessedFiles] = useState(0);
+  const [totalFiles, setTotalFiles] = useState(0);
 
   // Cleanup function to remove files
   const cleanupFiles = () => {
     setSelectedFiles({});
     setTotalSize(0);
+    setProgress(0);
+    setProcessedFiles(0);
+    setTotalFiles(0);
     onFilesSelected([]);
   };
 
@@ -60,6 +68,8 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
     const filePromises: Promise<void>[] = [];
     const newFiles: { [key: string]: FileContent } = {};
     let newTotalSize = 0;
+    let fileCount = 0;
+    let hasShownSizeError = false;
 
     const processFile = async (file: File, path = '') => {
       try {
@@ -72,24 +82,41 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
 
         // Check individual file size
         if (file.size > MAX_FILE_SIZE) {
-          throw new Error(`File ${file.name} exceeds the 5MB size limit`);
+          if (!hasShownSizeError) {
+            hasShownSizeError = true;
+            throw new Error(`File ${file.name} exceeds the 5MB size limit`);
+          }
+          return;
         }
 
         // Check if adding this file would exceed total size limit
         if (newTotalSize + file.size > MAX_TOTAL_SIZE) {
-          throw new Error('Total upload size exceeds 50MB limit');
+          if (!hasShownSizeError) {
+            hasShownSizeError = true;
+            throw new Error('Total upload size exceeds 50MB limit');
+          }
+          return;
         }
 
         const content = await file.text();
         newFiles[filePath] = { path: filePath, content };
         newTotalSize += file.size;
+        fileCount++;
+
+        setProcessedFiles(prev => {
+          const newCount = prev + 1;
+          setProgress((newCount / totalFiles) * 100);
+          return newCount;
+        });
       } catch (error) {
         console.error(`Error processing file ${file.name}:`, error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: (error as Error).message || `Failed to process file ${file.name}`,
-        });
+        if (!hasShownSizeError) {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: (error as Error).message || `Failed to process file ${file.name}`,
+          });
+        }
       }
     };
 
@@ -121,8 +148,18 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
     };
 
     try {
+      setIsProcessing(true);
       // Clear previous files before processing new ones
       cleanupFiles();
+
+      // Count total files first for progress tracking
+      let totalFilesCount = 0;
+      if (items instanceof DataTransferItemList) {
+        totalFilesCount = Array.from(items).length;
+      } else {
+        totalFilesCount = items.length;
+      }
+      setTotalFiles(totalFilesCount);
 
       if (items instanceof DataTransferItemList) {
         for (const item of Array.from(items)) {
@@ -164,6 +201,9 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
         title: "Error",
         description: (error as Error).message || "Failed to process files",
       });
+    } finally {
+      setIsProcessing(false);
+      setProgress(0);
     }
   }, [onFilesSelected, allowDirectories, toast]);
 
@@ -296,6 +336,15 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
               ? 'Maximum 50MB total, 5MB per file. node_modules and build folders are excluded.'
               : 'Maximum 50MB total, 5MB per file. Supports common code file types.'}
           </p>
+
+          {isProcessing && (
+            <div className="w-full mt-4 space-y-2">
+              <Progress value={progress} className="h-2" />
+              <p className="text-sm text-zinc-400">
+                Processing files: {processedFiles}/{totalFiles} ({Math.round(progress)}%)
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
