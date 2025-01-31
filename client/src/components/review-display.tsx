@@ -1,10 +1,9 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import ReactMarkdown from "react-markdown";
 import { Check } from "lucide-react";
 import { motion } from "framer-motion";
-import CodeComparison from "./code-comparison";
 import { useState } from "react";
+import FileDiffView from "./file-diff-view";
 
 interface ReviewDisplayProps {
   title: string;
@@ -38,78 +37,111 @@ const item = {
   }
 };
 
-export default function ReviewDisplay({ title, content, originalCode, onApplyChange }: ReviewDisplayProps) {
-  const [appliedChanges, setAppliedChanges] = useState<Set<number>>(new Set());
+interface ParsedChange {
+  filePath: string;
+  originalCode: string;
+  suggestedCode: string;
+  description: string;
+}
 
-  const handleApplyChange = (index: number, suggestion: string) => {
-    if (onApplyChange) {
-      onApplyChange(suggestion);
-      setAppliedChanges(prev => new Set(prev).add(index));
+function parseSuggestion(suggestion: string): ParsedChange | null {
+  // Look for file paths in various formats
+  const filePathMatch = suggestion.match(/(?:['"`])([^'"`]+\.[a-zA-Z]+)(?:['"`])/);
+  if (!filePathMatch) return null;
+
+  const filePath = filePathMatch[1];
+  const codeBlockRegex = /```(?:\w+)?\s*([\s\S]*?)```/g;
+  const codeBlocks = [...suggestion.matchAll(codeBlockRegex)].map(match => match[1].trim());
+
+  // Get description by removing code blocks and file paths
+  let description = suggestion
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/['"`][^'"`]+\.[a-zA-Z]+['"`]/g, '')
+    .trim();
+
+  if (codeBlocks.length >= 2) {
+    return {
+      filePath,
+      originalCode: codeBlocks[0],
+      suggestedCode: codeBlocks[1],
+      description
+    };
+  } else if (codeBlocks.length === 1) {
+    return {
+      filePath,
+      originalCode: '',
+      suggestedCode: codeBlocks[0],
+      description
+    };
+  }
+
+  return null;
+}
+
+function organizeChangesByFile(suggestions: string[]): { [filePath: string]: ParsedChange[] } {
+  const fileChanges: { [filePath: string]: ParsedChange[] } = {};
+
+  suggestions.forEach(suggestion => {
+    const parsedChange = parseSuggestion(suggestion);
+    if (parsedChange) {
+      if (!fileChanges[parsedChange.filePath]) {
+        fileChanges[parsedChange.filePath] = [];
+      }
+      fileChanges[parsedChange.filePath].push(parsedChange);
+    }
+  });
+
+  return fileChanges;
+}
+
+export default function ReviewDisplay({ title, content, originalCode, onApplyChange }: ReviewDisplayProps) {
+  const [appliedChanges, setAppliedChanges] = useState<Set<string>>(new Set());
+  const fileChanges = organizeChangesByFile(content);
+
+  const handleApplyChange = (filePath: string, index: number) => {
+    if (!onApplyChange) return;
+
+    const changes = fileChanges[filePath];
+    if (changes && changes[index]) {
+      const changeKey = `${filePath}:${index}`;
+      if (!appliedChanges.has(changeKey)) {
+        onApplyChange(content[index]); // Use original suggestion for backward compatibility
+        setAppliedChanges(prev => new Set(prev).add(changeKey));
+      }
     }
   };
 
-  const handleApplyAll = () => {
-    if (!onApplyChange) return;
-
-    content.forEach((suggestion, index) => {
-      if (!appliedChanges.has(index)) {
-        onApplyChange(suggestion);
-        setAppliedChanges(prev => new Set(prev).add(index));
-      }
-    });
-  };
-
-  // Extract code blocks from markdown
-  const getCodeBlocks = (markdown: string): string[] => {
-    const regex = /```(?:\w+)?\s*([\s\S]*?)```/g;
-    return [...markdown.matchAll(regex)].map(match => match[1].trim());
-  };
-
-  // Get the text description without code blocks
-  const getDescription = (markdown: string): string => {
-    return markdown.replace(/```[\s\S]*?```/g, '').trim();
-  };
+  // If there are no file-specific changes, fall back to the original display
+  if (Object.keys(fileChanges).length === 0) {
+    return (
+      <div className="space-y-6">
+        <h3 className="text-2xl font-bold text-zinc-100">{title}</h3>
+        <div className="space-y-4">
+          {content.map((item, index) => (
+            <Card key={index} className="p-4 border-zinc-800">
+              <div className="prose prose-invert max-w-none">
+                {item}
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-2xl font-bold text-zinc-100">{title}</h3>
-        {onApplyChange && content.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleApplyAll}
-            disabled={appliedChanges.size === content.length}
-            className="border-zinc-700 hover:border-primary/40 transition-colors"
-          >
-            <Check className="h-4 w-4 mr-2" />
-            Apply All Changes
-          </Button>
-        )}
-      </div>
-
+      <h3 className="text-2xl font-bold text-zinc-100">{title}</h3>
       <motion.div
         variants={container}
         initial="hidden"
         animate="show"
-        className="space-y-6"
       >
-        {content.map((suggestion, index) => {
-          const codeBlocks = getCodeBlocks(suggestion);
-          const description = getDescription(suggestion);
-
-          return (
-            <motion.div key={index} variants={item}>
-              <CodeComparison
-                originalCode={codeBlocks[0] || originalCode || ''}
-                suggestedCode={codeBlocks[1] || codeBlocks[0] || suggestion}
-                suggestion={description}
-                onApplyChange={() => handleApplyChange(index, suggestion)}
-                isApplied={appliedChanges.has(index)}
-              />
-            </motion.div>
-          );
-        })}
+        <FileDiffView
+          files={fileChanges}
+          onApplyChange={handleApplyChange}
+          appliedChanges={appliedChanges}
+        />
       </motion.div>
     </div>
   );
