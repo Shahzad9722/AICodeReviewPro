@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, File, Folder, X } from "lucide-react";
@@ -10,26 +10,58 @@ interface FileUploadProps {
   allowDirectories?: boolean;
 }
 
+// Maximum file size in bytes (5MB per file)
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+// Maximum total upload size in bytes (50MB)
+const MAX_TOTAL_SIZE = 50 * 1024 * 1024;
+
 export default function FileUpload({ onFilesSelected, allowDirectories = false }: FileUploadProps) {
   const [dragActive, setDragActive] = useState(false);
   const { toast } = useToast();
   const [selectedFiles, setSelectedFiles] = useState<{ [key: string]: FileContent }>({});
+  const [totalSize, setTotalSize] = useState(0);
+
+  // Cleanup function to remove files
+  const cleanupFiles = () => {
+    setSelectedFiles({});
+    setTotalSize(0);
+    onFilesSelected([]);
+  };
+
+  // Effect to cleanup files when component unmounts
+  useEffect(() => {
+    return () => {
+      cleanupFiles();
+    };
+  }, []);
 
   const handleFiles = useCallback(async (items: DataTransferItemList | FileList) => {
     const filePromises: Promise<void>[] = [];
     const newFiles: { [key: string]: FileContent } = {};
+    let newTotalSize = 0;
 
     const processFile = async (file: File, path = '') => {
       try {
+        // Check individual file size
+        if (file.size > MAX_FILE_SIZE) {
+          throw new Error(`File ${file.name} exceeds the 5MB size limit`);
+        }
+
+        // Check if adding this file would exceed total size limit
+        if (newTotalSize + file.size > MAX_TOTAL_SIZE) {
+          throw new Error('Total upload size exceeds 50MB limit');
+        }
+
         const content = await file.text();
         const filePath = path ? `${path}/${file.name}` : file.name;
         newFiles[filePath] = { path: filePath, content };
+        newTotalSize += file.size;
       } catch (error) {
         console.error(`Error processing file ${file.name}:`, error);
         toast({
           variant: "destructive",
           title: "Error",
-          description: `Failed to process file ${file.name}`,
+          description: (error as Error).message || `Failed to process file ${file.name}`,
         });
       }
     };
@@ -58,6 +90,9 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
     };
 
     try {
+      // Clear previous files before processing new ones
+      cleanupFiles();
+
       if (items instanceof DataTransferItemList) {
         for (const item of Array.from(items)) {
           if (item.webkitGetAsEntry) {
@@ -74,23 +109,26 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
       }
 
       await Promise.all(filePromises);
-      const updatedFiles = { ...selectedFiles, ...newFiles };
-      setSelectedFiles(updatedFiles);
-      onFilesSelected(Object.values(updatedFiles));
 
-      toast({
-        title: "Success",
-        description: `${Object.keys(newFiles).length} file(s) uploaded successfully`,
-      });
+      if (Object.keys(newFiles).length > 0) {
+        setSelectedFiles(newFiles);
+        setTotalSize(newTotalSize);
+        onFilesSelected(Object.values(newFiles));
+
+        toast({
+          title: "Success",
+          description: `${Object.keys(newFiles).length} file(s) uploaded successfully`,
+        });
+      }
     } catch (error) {
       console.error("Error handling files:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to process files",
+        description: (error as Error).message || "Failed to process files",
       });
     }
-  }, [onFilesSelected, allowDirectories, selectedFiles, toast]);
+  }, [onFilesSelected, allowDirectories, toast]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -218,8 +256,8 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
           </label>
           <p className="text-sm text-zinc-500">
             {allowDirectories
-              ? 'Drag and drop project folders to review entire applications'
-              : 'Upload individual files for code review'}
+              ? 'Maximum 50MB total, 5MB per file'
+              : 'Maximum 50MB total, 5MB per file'}
           </p>
         </CardContent>
       </Card>
@@ -227,8 +265,22 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
       {Object.keys(selectedFiles).length > 0 && (
         <Card className="border-zinc-800">
           <CardContent className="pt-6">
-            <h3 className="text-lg font-medium mb-4">Selected Files</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">Selected Files</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={cleanupFiles}
+                className="border-zinc-700 hover:border-red-500/40 hover:text-red-400 transition-colors"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Clear All
+              </Button>
+            </div>
             {renderFileTree()}
+            <p className="text-sm text-zinc-500 mt-4">
+              Total size: {(totalSize / (1024 * 1024)).toFixed(2)}MB
+            </p>
           </CardContent>
         </Card>
       )}
