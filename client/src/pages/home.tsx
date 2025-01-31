@@ -49,9 +49,19 @@ export default function Home() {
   const [language, setLanguage] = useState("javascript");
   const [mode, setMode] = useState<ReviewMode>("general");
   const [saveReview, setSaveReview] = useState(false);
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const formId = useId();
+
+  useEffect(() => {
+    console.log("Current state:", {
+      inputMode,
+      hasFiles: files.length > 0,
+      hasPastedCode: Boolean(pastedCode.trim()),
+      reviewName: Boolean(reviewName.trim()),
+    });
+  }, [inputMode, files, pastedCode, reviewName]);
 
   const reviewMutation = useMutation({
     mutationFn: async (data: { files: FileContent[]; name: string; description: string }) => {
@@ -68,7 +78,7 @@ export default function Home() {
           title: "Analysis in Progress",
           description: `Still analyzing... (${elapsed}s)`,
         });
-      }, 10000); 
+      }, 10000);
 
       try {
         const response = await apiRequest("POST", "/api/review", {
@@ -103,16 +113,6 @@ export default function Home() {
       });
     },
   });
-
-  useEffect(() => {
-    console.log("Current state:", {
-      inputMode,
-      hasFiles: files.length > 0,
-      hasPastedCode: Boolean(pastedCode.trim()),
-      reviewName: Boolean(reviewName.trim()),
-      isPending: reviewMutation.isPending
-    });
-  }, [inputMode, files, pastedCode, reviewName, reviewMutation.isPending]);
 
   const handleReview = async () => {
     if (inputMode === "paste" && !pastedCode.trim()) {
@@ -417,7 +417,7 @@ export default function Home() {
                       <TabsContent value="suggestions">
                         <ReviewDisplay
                           title="Code Suggestions"
-                          content={reviewMutation.data.suggestions}
+                          content={reviewMutation.data?.suggestions}
                           onApplyChange={
                             inputMode === "paste" ||
                             (inputMode === "files" && files.length === 1)
@@ -429,7 +429,7 @@ export default function Home() {
                       <TabsContent value="improvements">
                         <ReviewDisplay
                           title="Possible Improvements"
-                          content={reviewMutation.data.improvements}
+                          content={reviewMutation.data?.improvements}
                           onApplyChange={
                             inputMode === "paste" ||
                             (inputMode === "files" && files.length === 1)
@@ -441,19 +441,19 @@ export default function Home() {
                       <TabsContent value="architecture">
                         <ReviewDisplay
                           title="Architecture Review"
-                          content={reviewMutation.data.architecture}
+                          content={reviewMutation.data?.architecture}
                         />
                       </TabsContent>
                       <TabsContent value="security">
                         <ReviewDisplay
                           title="Security Considerations"
-                          content={reviewMutation.data.security}
+                          content={reviewMutation.data?.security}
                         />
                       </TabsContent>
                       <TabsContent value="dependencies">
                         <ReviewDisplay
                           title="Dependencies Analysis"
-                          content={reviewMutation.data.dependencies}
+                          content={reviewMutation.data?.dependencies}
                         />
                       </TabsContent>
                     </Tabs>
