@@ -15,6 +15,16 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 // Maximum total upload size in bytes (50MB)
 const MAX_TOTAL_SIZE = 50 * 1024 * 1024;
 
+// File extensions to accept
+const ACCEPTED_EXTENSIONS = [
+  'js', 'ts', 'jsx', 'tsx', 'py', 'java', 'cpp', 'c',
+  'h', 'cs', 'php', 'rb', 'swift', 'go', 'rs', 'html',
+  'css', 'scss', 'json', 'yml', 'yaml', 'md', 'txt'
+];
+
+// Directories to exclude
+const EXCLUDED_DIRS = ['node_modules', 'dist', 'build', '.git'];
+
 export default function FileUpload({ onFilesSelected, allowDirectories = false }: FileUploadProps) {
   const [dragActive, setDragActive] = useState(false);
   const { toast } = useToast();
@@ -35,6 +45,17 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
     };
   }, []);
 
+  const isValidFile = (filePath: string): boolean => {
+    // Check if file is in excluded directory
+    if (EXCLUDED_DIRS.some(dir => filePath.includes(`/${dir}/`))) {
+      return false;
+    }
+
+    // Check file extension
+    const ext = filePath.split('.').pop()?.toLowerCase();
+    return ext ? ACCEPTED_EXTENSIONS.includes(ext) : false;
+  };
+
   const handleFiles = useCallback(async (items: DataTransferItemList | FileList) => {
     const filePromises: Promise<void>[] = [];
     const newFiles: { [key: string]: FileContent } = {};
@@ -42,6 +63,13 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
 
     const processFile = async (file: File, path = '') => {
       try {
+        const filePath = path ? `${path}/${file.name}` : file.name;
+
+        // Skip files in excluded directories or with invalid extensions
+        if (!isValidFile(filePath)) {
+          return;
+        }
+
         // Check individual file size
         if (file.size > MAX_FILE_SIZE) {
           throw new Error(`File ${file.name} exceeds the 5MB size limit`);
@@ -53,7 +81,6 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
         }
 
         const content = await file.text();
-        const filePath = path ? `${path}/${file.name}` : file.name;
         newFiles[filePath] = { path: filePath, content };
         newTotalSize += file.size;
       } catch (error) {
@@ -77,6 +104,10 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
         });
       } else if (entry.isDirectory && allowDirectories) {
         const dirEntry = entry as FileSystemDirectoryEntry;
+        // Skip excluded directories
+        if (EXCLUDED_DIRS.includes(dirEntry.name)) {
+          return;
+        }
         const dirReader = dirEntry.createReader();
         await new Promise<void>((resolve) => {
           dirReader.readEntries(async (entries) => {
@@ -118,6 +149,12 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
         toast({
           title: "Success",
           description: `${Object.keys(newFiles).length} file(s) uploaded successfully`,
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Warning",
+          description: "No valid files were found to upload. Make sure your files are supported and not in excluded directories (like node_modules).",
         });
       }
     } catch (error) {
@@ -256,8 +293,8 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
           </label>
           <p className="text-sm text-zinc-500">
             {allowDirectories
-              ? 'Maximum 50MB total, 5MB per file'
-              : 'Maximum 50MB total, 5MB per file'}
+              ? 'Maximum 50MB total, 5MB per file. node_modules and build folders are excluded.'
+              : 'Maximum 50MB total, 5MB per file. Supports common code file types.'}
           </p>
         </CardContent>
       </Card>
