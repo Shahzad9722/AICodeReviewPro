@@ -9,7 +9,7 @@ import { useState } from "react";
 interface ReviewDisplayProps {
   title: string;
   content: string[];
-  originalCode: string;
+  originalCode?: string;
   onApplyChange?: (suggestion: string) => void;
 }
 
@@ -86,7 +86,7 @@ export default function ReviewDisplay({ title, content, originalCode, onApplyCha
         {content.map((suggestion, index) => (
           <motion.div key={index} variants={item}>
             <CodeComparison
-              originalCode={originalCode}
+              originalCode={originalCode || ''}
               suggestedCode={suggestion}
               suggestion={suggestion}
               onApplyChange={() => handleApplyChange(index, suggestion)}
