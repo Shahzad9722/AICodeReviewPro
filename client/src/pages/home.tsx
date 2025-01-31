@@ -19,12 +19,25 @@ import FileUpload from "@/components/file-upload";
 import type { FileContent } from "@/lib/openai";
 
 const extractFileInfoFromMarkdown = (markdown: string): { path?: string; code?: string } => {
-  const filePathMatch = markdown.match(/[`']([^`']+\.[a-zA-Z]+)[`']/);
+  // Look for file paths in various formats: quoted, backticked, or plain
+  const filePathMatch = markdown.match(/(?:['"`])([^'"`]+\.[a-zA-Z]+)(?:['"`])/);
   const filePath = filePathMatch ? filePathMatch[1] : undefined;
 
-  const codeBlockRegex = /```(?:javascript|typescript|js|ts)?\n([\s\S]*?)```/;
+  // More flexible code block regex that handles various formats:
+  // 1. With language specification
+  // 2. Without language specification
+  // 3. With or without newlines
+  const codeBlockRegex = /```(?:\w+)?\s*([\s\S]*?)```/;
   const codeMatch = markdown.match(codeBlockRegex);
   const code = codeMatch ? codeMatch[1].trim() : undefined;
+
+  if (!code) {
+    // Fallback: Try to find code between backticks if no code block is found
+    const inlineCodeMatch = markdown.match(/`([^`]+)`/);
+    if (inlineCodeMatch) {
+      return { path: filePath, code: inlineCodeMatch[1].trim() };
+    }
+  }
 
   return { path: filePath, code };
 };
