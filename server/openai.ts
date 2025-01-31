@@ -57,11 +57,7 @@ function createFileContext(files: FileContent[]): string {
       return isTextFile;
     })
     .map(file => {
-      // Limit content size to 5KB per file for faster processing
-      const content = file.content.slice(0, 5000);
-      return `File: ${file.path}\n\`\`\`\n${content}${
-        content.length === 5000 ? '\n... (truncated)' : ''
-      }\n\`\`\`\n`;
+      return `File: ${file.path}\n\`\`\`\n${file.content}\n\`\`\`\n`;
     })
     .join('\n\n');
 }

@@ -1,6 +1,4 @@
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import FileDiffView from "./file-diff-view";
@@ -45,7 +43,7 @@ interface ParsedChange {
 }
 
 function parseSuggestion(suggestion: string): ParsedChange | null {
-  // Look for file paths in various formats
+  // Look for file paths in various formats: quoted, backticked, or plain
   const filePathMatch = suggestion.match(/(?:['"`])([^'"`]+\.[a-zA-Z]+)(?:['"`])/);
   if (!filePathMatch) return null;
 
@@ -59,6 +57,11 @@ function parseSuggestion(suggestion: string): ParsedChange | null {
     .replace(/['"`][^'"`]+\.[a-zA-Z]+['"`]/g, '')
     .trim();
 
+  // Check if this is a full file replacement or partial change
+  const isFullFile = suggestion.toLowerCase().includes("entire file") ||
+                    suggestion.toLowerCase().includes("full file") ||
+                    suggestion.toLowerCase().includes("complete file");
+
   if (codeBlocks.length >= 2) {
     return {
       filePath,
@@ -69,7 +72,7 @@ function parseSuggestion(suggestion: string): ParsedChange | null {
   } else if (codeBlocks.length === 1) {
     return {
       filePath,
-      originalCode: '',
+      originalCode: isFullFile ? '' : codeBlocks[0],
       suggestedCode: codeBlocks[0],
       description
     };

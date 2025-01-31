@@ -2,7 +2,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, CheckCircle } from "lucide-react";
 import CodeEditor from "./code-editor";
-import { useState } from "react";
 
 interface CodeComparisonProps {
   originalCode: string;
@@ -10,6 +9,7 @@ interface CodeComparisonProps {
   suggestion: string;
   onApplyChange: () => void;
   isApplied?: boolean;
+  showFullFile?: boolean;
 }
 
 export default function CodeComparison({
@@ -17,7 +17,8 @@ export default function CodeComparison({
   suggestedCode,
   suggestion,
   onApplyChange,
-  isApplied = false
+  isApplied = false,
+  showFullFile = true
 }: CodeComparisonProps) {
   return (
     <Card className="border-2 border-zinc-800 bg-zinc-900/50 backdrop-blur-sm p-6 space-y-4">
@@ -49,7 +50,7 @@ export default function CodeComparison({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <p className="text-sm font-medium text-zinc-400 mb-2">Original Code</p>
+          <p className="text-sm font-medium text-zinc-400 mb-2">Original File</p>
           <div className="bg-zinc-800/60 rounded-lg p-1">
             <CodeEditor code={originalCode} onChange={() => {}} />
           </div>
