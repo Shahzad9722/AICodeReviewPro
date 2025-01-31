@@ -32,15 +32,21 @@ const extractFileInfoFromMarkdown = (markdown: string): { path?: string; code?: 
   // 1. With language specification
   // 2. Without language specification
   // 3. With or without newlines
-  const codeBlockRegex = /```(?:\w+)?\s*([\s\S]*?)```/;
-  const codeMatch = markdown.match(codeBlockRegex);
-  const code = codeMatch ? codeMatch[1].trim() : undefined;
+  const codeBlockRegex = /```(?:\w+)?\s*([\s\S]*?)```/g;
+  const codeBlocks = [...markdown.matchAll(codeBlockRegex)].map(match => match[1].trim());
 
-  if (!code) {
+  let code: string | undefined;
+
+  if (codeBlocks.length >= 2) {
+    // If we have two code blocks, assume they're before/after
+    code = codeBlocks[1]; // Use the "after" version
+  } else if (codeBlocks.length === 1) {
+    code = codeBlocks[0];
+  } else {
     // Fallback: Try to find code between backticks if no code block is found
     const inlineCodeMatch = markdown.match(/`([^`]+)`/);
     if (inlineCodeMatch) {
-      return { path: filePath, code: inlineCodeMatch[1].trim(), isFullFile };
+      code = inlineCodeMatch[1].trim();
     }
   }
 

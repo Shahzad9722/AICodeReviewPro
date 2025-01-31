@@ -59,6 +59,17 @@ export default function ReviewDisplay({ title, content, originalCode, onApplyCha
     });
   };
 
+  // Extract code blocks from markdown
+  const getCodeBlocks = (markdown: string): string[] => {
+    const regex = /```(?:\w+)?\s*([\s\S]*?)```/g;
+    return [...markdown.matchAll(regex)].map(match => match[1].trim());
+  };
+
+  // Get the text description without code blocks
+  const getDescription = (markdown: string): string => {
+    return markdown.replace(/```[\s\S]*?```/g, '').trim();
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -83,17 +94,22 @@ export default function ReviewDisplay({ title, content, originalCode, onApplyCha
         animate="show"
         className="space-y-6"
       >
-        {content.map((suggestion, index) => (
-          <motion.div key={index} variants={item}>
-            <CodeComparison
-              originalCode={originalCode || ''}
-              suggestedCode={suggestion}
-              suggestion={suggestion}
-              onApplyChange={() => handleApplyChange(index, suggestion)}
-              isApplied={appliedChanges.has(index)}
-            />
-          </motion.div>
-        ))}
+        {content.map((suggestion, index) => {
+          const codeBlocks = getCodeBlocks(suggestion);
+          const description = getDescription(suggestion);
+
+          return (
+            <motion.div key={index} variants={item}>
+              <CodeComparison
+                originalCode={codeBlocks[0] || originalCode || ''}
+                suggestedCode={codeBlocks[1] || codeBlocks[0] || suggestion}
+                suggestion={description}
+                onApplyChange={() => handleApplyChange(index, suggestion)}
+                isApplied={appliedChanges.has(index)}
+              />
+            </motion.div>
+          );
+        })}
       </motion.div>
     </div>
   );
