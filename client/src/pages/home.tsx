@@ -1,4 +1,4 @@
-import { useState, useId, useEffect } from "react";
+import { useState, useId, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -49,10 +49,12 @@ export default function Home() {
   const [language, setLanguage] = useState("javascript");
   const [mode, setMode] = useState<ReviewMode>("general");
   const [saveReview, setSaveReview] = useState(false);
+  const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const formId = useId();
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     console.log("Current state:", {
@@ -104,6 +106,13 @@ export default function Home() {
           description: "Review completed and saved successfully",
         });
       }
+      // Scroll to results
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }, 100);
     },
     onError: (error) => {
       toast({
@@ -115,6 +124,9 @@ export default function Home() {
   });
 
   const handleReview = async () => {
+    // Mark all fields as touched when submitting
+    setTouchedFields(new Set(['reviewName', 'code']));
+
     if (inputMode === "paste" && !pastedCode.trim()) {
       toast({
         variant: "destructive",
@@ -178,6 +190,12 @@ export default function Home() {
     setFiles([]);
   };
 
+  const markAsTouched = (fieldName: string) => {
+    setTouchedFields(prev => new Set(prev).add(fieldName));
+  };
+
+  const showError = (fieldName: string) => touchedFields.has(fieldName);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-zinc-900/95 to-black">
       <div className="container mx-auto p-6 max-w-6xl space-y-12">
@@ -209,11 +227,12 @@ export default function Home() {
                     type="text"
                     value={reviewName}
                     onChange={(e) => setReviewName(e.target.value)}
+                    onBlur={() => markAsTouched('reviewName')}
                     className={`bg-zinc-800/80 border-zinc-700 focus:border-primary/40 transition-colors
-                      ${!reviewName.trim() && "border-red-500/50"}`}
+                      ${!reviewName.trim() && showError('reviewName') && "border-red-500/50"}`}
                     placeholder="Enter a name for this review"
                   />
-                  {!reviewName.trim() && (
+                  {!reviewName.trim() && showError('reviewName') && (
                     <p className="text-sm text-red-400 mt-1">Review name is required</p>
                   )}
                 </div>
@@ -350,118 +369,120 @@ export default function Home() {
                     "Review Code"
                   )}
                 </Button>
-                {!reviewName.trim() && (
+                {!reviewName.trim() && showError('reviewName') && (
                   <p className="text-sm text-red-400 mt-2">Please enter a review name</p>
                 )}
-                {inputMode === "paste" && !pastedCode.trim() && (
+                {inputMode === "paste" && !pastedCode.trim() && showError('code') && (
                   <p className="text-sm text-red-400 mt-2">Please paste some code to review</p>
                 )}
-                {(inputMode === "files" || inputMode === "project") && files.length === 0 && (
+                {(inputMode === "files" || inputMode === "project") && files.length === 0 && showError('code') && (
                   <p className="text-sm text-red-400 mt-2">Please select files to review</p>
                 )}
               </div>
             </CardContent>
           </Card>
 
-          <AnimatePresence>
-            {reviewMutation.data && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="transition-all duration-300"
-              >
-                <Card className="border-2 border-zinc-800 shadow-2xl bg-zinc-900/50 backdrop-blur-sm">
-                  <CardHeader>
-                    <CardTitle className="text-3xl font-bold text-zinc-100">Review Results</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Tabs defaultValue="suggestions" className="w-full">
-                      <TabsList className="w-full justify-start mb-6 bg-zinc-800/80 rounded-lg p-1">
-                        <TabsTrigger
-                          value="suggestions"
-                          className="data-[state=active]:bg-primary data-[state=active]:text-white 
-                            data-[state=active]:shadow-lg transition-all duration-200 px-6"
-                        >
-                          Suggestions
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="improvements"
-                          className="data-[state=active]:bg-primary data-[state=active]:text-white 
-                            data-[state=active]:shadow-lg transition-all duration-200 px-6"
-                        >
-                          Improvements
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="architecture"
-                          className="data-[state=active]:bg-primary data-[state=active]:text-white 
-                            data-[state=active]:shadow-lg transition-all duration-200 px-6"
-                        >
-                          Architecture
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="security"
-                          className="data-[state=active]:bg-primary data-[state=active]:text-white 
-                            data-[state=active]:shadow-lg transition-all duration-200 px-6"
-                        >
-                          Security
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="dependencies"
-                          className="data-[state=active]:bg-primary data-[state=active]:text-white 
-                            data-[state=active]:shadow-lg transition-all duration-200 px-6"
-                        >
-                          Dependencies
-                        </TabsTrigger>
-                      </TabsList>
-                      <TabsContent value="suggestions">
-                        <ReviewDisplay
-                          title="Code Suggestions"
-                          content={reviewMutation.data?.suggestions}
-                          onApplyChange={
-                            inputMode === "paste" ||
-                            (inputMode === "files" && files.length === 1)
-                              ? handleApplyChange
-                              : undefined
-                          }
-                        />
-                      </TabsContent>
-                      <TabsContent value="improvements">
-                        <ReviewDisplay
-                          title="Possible Improvements"
-                          content={reviewMutation.data?.improvements}
-                          onApplyChange={
-                            inputMode === "paste" ||
-                            (inputMode === "files" && files.length === 1)
-                              ? handleApplyChange
-                              : undefined
-                          }
-                        />
-                      </TabsContent>
-                      <TabsContent value="architecture">
-                        <ReviewDisplay
-                          title="Architecture Review"
-                          content={reviewMutation.data?.architecture}
-                        />
-                      </TabsContent>
-                      <TabsContent value="security">
-                        <ReviewDisplay
-                          title="Security Considerations"
-                          content={reviewMutation.data?.security}
-                        />
-                      </TabsContent>
-                      <TabsContent value="dependencies">
-                        <ReviewDisplay
-                          title="Dependencies Analysis"
-                          content={reviewMutation.data?.dependencies}
-                        />
-                      </TabsContent>
-                    </Tabs>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <div ref={resultsRef}>
+            <AnimatePresence>
+              {reviewMutation.data && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="transition-all duration-300"
+                >
+                  <Card className="border-2 border-zinc-800 shadow-2xl bg-zinc-900/50 backdrop-blur-sm">
+                    <CardHeader>
+                      <CardTitle className="text-3xl font-bold text-zinc-100">Review Results</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Tabs defaultValue="suggestions" className="w-full">
+                        <TabsList className="w-full justify-start mb-6 bg-zinc-800/80 rounded-lg p-1">
+                          <TabsTrigger
+                            value="suggestions"
+                            className="data-[state=active]:bg-primary data-[state=active]:text-white 
+                              data-[state=active]:shadow-lg transition-all duration-200 px-6"
+                          >
+                            Suggestions
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="improvements"
+                            className="data-[state=active]:bg-primary data-[state=active]:text-white 
+                              data-[state=active]:shadow-lg transition-all duration-200 px-6"
+                          >
+                            Improvements
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="architecture"
+                            className="data-[state=active]:bg-primary data-[state=active]:text-white 
+                              data-[state=active]:shadow-lg transition-all duration-200 px-6"
+                          >
+                            Architecture
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="security"
+                            className="data-[state=active]:bg-primary data-[state=active]:text-white 
+                              data-[state=active]:shadow-lg transition-all duration-200 px-6"
+                          >
+                            Security
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="dependencies"
+                            className="data-[state=active]:bg-primary data-[state=active]:text-white 
+                              data-[state=active]:shadow-lg transition-all duration-200 px-6"
+                          >
+                            Dependencies
+                          </TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="suggestions">
+                          <ReviewDisplay
+                            title="Code Suggestions"
+                            content={reviewMutation.data?.suggestions}
+                            onApplyChange={
+                              inputMode === "paste" ||
+                              (inputMode === "files" && files.length === 1)
+                                ? handleApplyChange
+                                : undefined
+                            }
+                          />
+                        </TabsContent>
+                        <TabsContent value="improvements">
+                          <ReviewDisplay
+                            title="Possible Improvements"
+                            content={reviewMutation.data?.improvements}
+                            onApplyChange={
+                              inputMode === "paste" ||
+                              (inputMode === "files" && files.length === 1)
+                                ? handleApplyChange
+                                : undefined
+                            }
+                          />
+                        </TabsContent>
+                        <TabsContent value="architecture">
+                          <ReviewDisplay
+                            title="Architecture Review"
+                            content={reviewMutation.data?.architecture}
+                          />
+                        </TabsContent>
+                        <TabsContent value="security">
+                          <ReviewDisplay
+                            title="Security Considerations"
+                            content={reviewMutation.data?.security}
+                          />
+                        </TabsContent>
+                        <TabsContent value="dependencies">
+                          <ReviewDisplay
+                            title="Dependencies Analysis"
+                            content={reviewMutation.data?.dependencies}
+                          />
+                        </TabsContent>
+                      </Tabs>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           {reviewMutation.isError && (
             <Alert variant="destructive" className="border-red-500/20 bg-red-500/10">
