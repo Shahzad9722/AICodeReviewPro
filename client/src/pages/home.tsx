@@ -101,29 +101,29 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       <div className="container mx-auto p-4 max-w-6xl space-y-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center space-y-4"
+          className="text-center space-y-4 pt-8"
         >
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-primary via-primary/90 to-primary/70 bg-clip-text text-transparent">
             AI Code Reviewer
           </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
             Get instant code reviews and suggestions powered by AI. Choose a review mode and let our AI
             help you write better code.
           </p>
         </motion.div>
 
         <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Code Input</CardTitle>
+          <Card className="border-primary/10 shadow-lg">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-2xl font-semibold text-primary">Code Input</CardTitle>
               <div className="flex flex-wrap gap-4 mt-4">
                 <Select value={language} onValueChange={setLanguage}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-[180px] border-primary/20">
                     <SelectValue placeholder="Select language" />
                   </SelectTrigger>
                   <SelectContent>
@@ -136,7 +136,7 @@ export default function Home() {
                 </Select>
 
                 <Select value={mode} onValueChange={(value) => setMode(value as ReviewMode)}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-[180px] border-primary/20">
                     <SelectValue placeholder="Select review mode" />
                   </SelectTrigger>
                   <SelectContent>
@@ -151,12 +151,12 @@ export default function Home() {
             </CardHeader>
             <CardContent className="space-y-4">
               <CodeEditor code={code} onChange={setCode} />
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center pt-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setSaveReview(!saveReview)}
-                  className={saveReview ? "bg-primary/10" : ""}
+                  className={`${saveReview ? "bg-primary/10 border-primary/30" : "border-primary/20"} transition-colors duration-200`}
                 >
                   <Save className={`h-4 w-4 mr-2 ${saveReview ? "text-primary" : ""}`} />
                   {saveReview ? "Will save review" : "Save review"}
@@ -165,6 +165,7 @@ export default function Home() {
                   onClick={handleReview}
                   disabled={reviewMutation.isPending || !code.trim()}
                   size="lg"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-all duration-200"
                 >
                   {reviewMutation.isPending ? (
                     <>
@@ -185,17 +186,24 @@ export default function Home() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
+                className="transition-shadow duration-200"
               >
-                <Card>
+                <Card className="border-primary/10 shadow-lg">
                   <CardHeader>
-                    <CardTitle>Review Results</CardTitle>
+                    <CardTitle className="text-2xl font-semibold text-primary">Review Results</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <Tabs defaultValue="suggestions" className="w-full">
-                      <TabsList className="w-full justify-start mb-4">
-                        <TabsTrigger value="suggestions">Suggestions</TabsTrigger>
-                        <TabsTrigger value="improvements">Improvements</TabsTrigger>
-                        <TabsTrigger value="security">Security</TabsTrigger>
+                      <TabsList className="w-full justify-start mb-4 bg-primary/5 p-1">
+                        <TabsTrigger value="suggestions" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                          Suggestions
+                        </TabsTrigger>
+                        <TabsTrigger value="improvements" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                          Improvements
+                        </TabsTrigger>
+                        <TabsTrigger value="security" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                          Security
+                        </TabsTrigger>
                       </TabsList>
                       <TabsContent value="suggestions">
                         <ReviewDisplay
@@ -226,8 +234,8 @@ export default function Home() {
           </AnimatePresence>
 
           {reviewMutation.isError && (
-            <Alert variant="destructive">
-              <AlertDescription>
+            <Alert variant="destructive" className="border-red-500/50 bg-red-500/10">
+              <AlertDescription className="text-red-700 dark:text-red-300">
                 {reviewMutation.error?.message || "An error occurred while reviewing the code"}
               </AlertDescription>
             </Alert>
