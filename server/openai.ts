@@ -56,10 +56,10 @@ function createFileContext(files: FileContent[]): string {
       return isTextFile;
     })
     .map(file => {
-      // Limit content size to 10KB per file
-      const content = file.content.slice(0, 10000);
+      // Limit content size to 5KB per file for faster processing
+      const content = file.content.slice(0, 5000);
       return `File: ${file.path}\n\`\`\`\n${content}${
-        content.length === 10000 ? '\n... (truncated)' : ''
+        content.length === 5000 ? '\n... (truncated)' : ''
       }\n\`\`\`\n`;
     })
     .join('\n\n');
@@ -89,7 +89,7 @@ Respond with a JSON object containing arrays of concise, actionable markdown-for
   "architecture": string[]
 }
 
-Keep each suggestion under 200 words and focus on the most important issues.
+Keep each suggestion under 150 words and focus on the most important issues.
 
 Language: ${language}
 Files: ${files.length}
@@ -98,9 +98,8 @@ ${fileContext}`
         }
       ],
       response_format: { type: "json_object" },
-      max_tokens: 2000,
-      temperature: 0.7,
-      timeout: 30000 // 30 second timeout
+      max_tokens: 1500,
+      temperature: 0.5 // Lower temperature for more focused responses
     });
 
     if (!response.choices[0].message.content) {
