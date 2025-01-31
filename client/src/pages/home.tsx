@@ -1,4 +1,4 @@
-import { useState, useId } from "react";
+import { useState, useId, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -52,22 +52,45 @@ export default function Home() {
 
   const reviewMutation = useMutation({
     mutationFn: async (data: { files: FileContent[]; name: string; description: string }) => {
-      const response = await apiRequest("POST", "/api/review", {
-        files: data.files,
-        name: data.name,
-        description: data.description,
-        mode,
-        language,
-        save: saveReview,
+      const startTime = Date.now();
+
+      // Show initial toast
+      toast({
+        title: "Analysis Started",
+        description: `Analyzing ${data.files.length} file(s)...`,
       });
-      return response.json();
+
+      // Set up progress updates
+      const progressInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        toast({
+          title: "Analysis in Progress",
+          description: `Still analyzing... (${elapsed}s)`,
+        });
+      }, 10000); // Update every 10 seconds
+
+      try {
+        const response = await apiRequest("POST", "/api/review", {
+          files: data.files,
+          name: data.name,
+          description: data.description,
+          mode,
+          language,
+          save: saveReview,
+        });
+        clearInterval(progressInterval);
+        return response.json();
+      } catch (error) {
+        clearInterval(progressInterval);
+        throw error;
+      }
     },
     onSuccess: () => {
       if (saveReview) {
         queryClient.invalidateQueries({ queryKey: ["/api/reviews"] });
         toast({
           title: "Success",
-          description: "Review saved successfully",
+          description: "Review completed and saved successfully",
         });
       }
     },
@@ -79,6 +102,17 @@ export default function Home() {
       });
     },
   });
+
+  // Add debug logs to track state
+  useEffect(() => {
+    console.log("Current state:", {
+      inputMode,
+      hasFiles: files.length > 0,
+      hasPastedCode: Boolean(pastedCode.trim()),
+      reviewName: Boolean(reviewName.trim()),
+      isPending: reviewMutation.isPending
+    });
+  }, [inputMode, files, pastedCode, reviewName, reviewMutation.isPending]);
 
   const handleReview = async () => {
     if (inputMode === "paste" && !pastedCode.trim()) {
@@ -289,7 +323,7 @@ export default function Home() {
                     reviewMutation.isPending ||
                     !reviewName.trim() ||
                     (inputMode === "paste" && !pastedCode.trim()) ||
-                    ((inputMode === "files" || inputMode === "project") && (!files || files.length === 0))
+                    ((inputMode === "files" || inputMode === "project") && files.length === 0)
                   }
                   size="lg"
                   className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-xl 
@@ -304,6 +338,16 @@ export default function Home() {
                     "Review Code"
                   )}
                 </Button>
+                {/* Add helper text to show why button might be disabled */}
+                {!reviewName.trim() && (
+                  <p className="text-sm text-red-400 mt-2">Please enter a review name</p>
+                )}
+                {inputMode === "paste" && !pastedCode.trim() && (
+                  <p className="text-sm text-red-400 mt-2">Please paste some code to review</p>
+                )}
+                {(inputMode === "files" || inputMode === "project") && files.length === 0 && (
+                  <p className="text-sm text-red-400 mt-2">Please select files to review</p>
+                )}
               </div>
             </CardContent>
           </Card>

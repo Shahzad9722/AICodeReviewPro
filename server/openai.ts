@@ -5,48 +5,64 @@ import type { CodeReviewResponse, FileContent } from "../client/src/lib/openai";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const REVIEW_PROMPTS = {
-  general: `You are an expert code reviewer analyzing a complete application codebase. Provide a comprehensive review including:
-1. Code suggestions for improving readability and maintainability across files
-2. Potential improvements for performance and best practices
-3. Security considerations and potential vulnerabilities
-4. Dependencies and package management recommendations
-5. Architecture and code organization suggestions`,
+  general: `You are an expert code reviewer analyzing code. Provide a concise review including:
+1. Key code suggestions
+2. Performance improvements
+3. Security considerations
+4. Dependencies recommendations
+5. Architecture suggestions`,
 
-  performance: `You are a performance optimization expert analyzing a complete codebase. Focus on:
-1. Time complexity and algorithmic efficiency across the application
-2. Memory usage and resource management patterns
-3. Async/await and Promise optimizations
-4. Caching opportunities and data structure choices
-5. Bundle size and code splitting recommendations`,
+  performance: `You are a performance optimization expert. Focus on:
+1. Time complexity and efficiency
+2. Memory usage patterns
+3. Async/await optimizations
+4. Caching opportunities
+5. Bundle optimization`,
 
-  security: `You are a security expert analyzing a complete codebase. Focus on:
-1. Common security vulnerabilities (XSS, CSRF, injection) across the application
-2. Input validation and sanitization practices
-3. Authentication and authorization implementation
-4. Data exposure risks and secure coding practices
-5. Dependency vulnerabilities and secure configuration`,
+  security: `You are a security expert. Focus on:
+1. Common vulnerabilities
+2. Input validation
+3. Authentication issues
+4. Data exposure risks
+5. Dependencies security`,
 
-  "clean-code": `You are a clean code expert analyzing a complete codebase. Focus on:
-1. Code organization and architecture patterns
-2. Naming conventions and clarity across files
-3. Function length and responsibility separation
-4. DRY principles and code duplication
-5. Consistent coding style and best practices`,
+  "clean-code": `You are a clean code expert. Focus on:
+1. Code organization
+2. Naming conventions
+3. Function responsibilities
+4. Code duplication
+5. Coding style`,
 
-  architecture: `You are a software architect analyzing a complete codebase. Focus on:
-1. Overall application architecture and design patterns
-2. Code modularity and component relationships
-3. Data flow and state management
-4. API design and integration patterns
-5. Scalability and maintainability considerations`,
+  architecture: `You are a software architect. Focus on:
+1. Application architecture
+2. Code modularity
+3. Data flow
+4. API design
+5. Scalability`,
 };
 
 export type ReviewMode = keyof typeof REVIEW_PROMPTS;
 
 function createFileContext(files: FileContent[]): string {
-  return files.map(file => 
-    `File: ${file.path}\n\`\`\`\n${file.content}\n\`\`\`\n`
-  ).join('\n\n');
+  // Only include relevant file content - skip binary files, limit size
+  return files
+    .filter(file => {
+      const ext = file.path.split('.').pop()?.toLowerCase();
+      const isTextFile = !ext || [
+        'js', 'ts', 'jsx', 'tsx', 'py', 'java', 'cpp', 'c',
+        'h', 'cs', 'php', 'rb', 'swift', 'go', 'rs', 'html',
+        'css', 'scss', 'json', 'yml', 'yaml', 'md', 'txt'
+      ].includes(ext);
+      return isTextFile;
+    })
+    .map(file => {
+      // Limit content size to 10KB per file
+      const content = file.content.slice(0, 10000);
+      return `File: ${file.path}\n\`\`\`\n${content}${
+        content.length === 10000 ? '\n... (truncated)' : ''
+      }\n\`\`\`\n`;
+    })
+    .join('\n\n');
 }
 
 export async function analyzeCode(
@@ -64,8 +80,7 @@ export async function analyzeCode(
         {
           role: "system",
           content: `${prompt}
-
-Respond with a JSON object containing arrays of markdown-formatted strings for each category:
+Respond with a JSON object containing arrays of concise, actionable markdown-formatted suggestions:
 {
   "suggestions": string[],
   "improvements": string[],
@@ -74,20 +89,18 @@ Respond with a JSON object containing arrays of markdown-formatted strings for e
   "architecture": string[]
 }
 
-Each suggestion should include:
-1. A clear explanation of what to change
-2. Code examples in markdown code blocks when applicable
-3. A brief explanation of why this improves the codebase
+Keep each suggestion under 200 words and focus on the most important issues.
 
-Language being analyzed: ${language}
-Number of files: ${files.length}
-
-Here are the files to analyze:
+Language: ${language}
+Files: ${files.length}
 
 ${fileContext}`
         }
       ],
-      response_format: { type: "json_object" }
+      response_format: { type: "json_object" },
+      max_tokens: 2000,
+      temperature: 0.7,
+      timeout: 30000 // 30 second timeout
     });
 
     if (!response.choices[0].message.content) {
