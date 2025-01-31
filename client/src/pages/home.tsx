@@ -334,50 +334,56 @@ export default function Home() {
                 </TabsContent>
               </Tabs>
 
-              <div className="flex justify-between items-center pt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSaveReview(!saveReview)}
-                  className={`
-                    ${saveReview ? "bg-primary/10 border-primary/40" : "border-zinc-700"}
-                    hover:bg-primary/15 hover:border-primary/50 transition-all duration-200
-                    text-zinc-300
-                  `}
-                >
-                  <Save className={`h-4 w-4 mr-2 ${saveReview ? "text-primary" : ""}`} />
-                  {saveReview ? "Will save review" : "Save review"}
-                </Button>
-                <Button
-                  onClick={handleReview}
-                  disabled={
-                    reviewMutation.isPending ||
-                    !reviewName.trim() ||
-                    (inputMode === "paste" && !pastedCode.trim()) ||
-                    ((inputMode === "files" || inputMode === "project") && files.length === 0)
-                  }
-                  size="lg"
-                  className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-xl 
-                    hover:shadow-2xl transition-all duration-200 px-8 py-6 disabled:opacity-50"
-                >
-                  {reviewMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Analyzing...
-                    </>
-                  ) : (
-                    "Review Code"
+              <div className="flex flex-col space-y-4">
+                {/* Error messages section */}
+                <div className="space-y-2">
+                  {!reviewName.trim() && showError('reviewName') && (
+                    <p className="text-sm text-red-400">Please enter a review name</p>
                   )}
-                </Button>
-                {!reviewName.trim() && showError('reviewName') && (
-                  <p className="text-sm text-red-400 mt-2">Please enter a review name</p>
-                )}
-                {inputMode === "paste" && !pastedCode.trim() && showError('code') && (
-                  <p className="text-sm text-red-400 mt-2">Please paste some code to review</p>
-                )}
-                {(inputMode === "files" || inputMode === "project") && files.length === 0 && showError('code') && (
-                  <p className="text-sm text-red-400 mt-2">Please select files to review</p>
-                )}
+                  {inputMode === "paste" && !pastedCode.trim() && showError('code') && (
+                    <p className="text-sm text-red-400">Please paste some code to review</p>
+                  )}
+                  {(inputMode === "files" || inputMode === "project") && files.length === 0 && showError('code') && (
+                    <p className="text-sm text-red-400">Please select files to review</p>
+                  )}
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSaveReview(!saveReview)}
+                    className={`
+                      ${saveReview ? "bg-primary/10 border-primary/40" : "border-zinc-700"}
+                      hover:bg-primary/15 hover:border-primary/50 transition-all duration-200
+                      text-zinc-300
+                    `}
+                  >
+                    <Save className={`h-4 w-4 mr-2 ${saveReview ? "text-primary" : ""}`} />
+                    {saveReview ? "Will save review" : "Save review"}
+                  </Button>
+                  <Button
+                    onClick={handleReview}
+                    disabled={
+                      reviewMutation.isPending ||
+                      !reviewName.trim() ||
+                      (inputMode === "paste" && !pastedCode.trim()) ||
+                      ((inputMode === "files" || inputMode === "project") && files.length === 0)
+                    }
+                    size="lg"
+                    className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-xl 
+                      hover:shadow-2xl transition-all duration-200 px-8 py-6 disabled:opacity-50"
+                  >
+                    {reviewMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Analyzing...
+                      </>
+                    ) : (
+                      "Review Code"
+                    )}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
