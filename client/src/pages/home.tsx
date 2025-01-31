@@ -101,29 +101,29 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-primary/10">
-      <div className="container mx-auto p-6 max-w-6xl space-y-10">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-background/80">
+      <div className="container mx-auto p-6 max-w-6xl space-y-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center space-y-6 pt-10"
+          className="text-center space-y-6 pt-12"
         >
-          <h1 className="text-6xl font-bold bg-gradient-to-r from-primary/90 via-primary to-primary/80 bg-clip-text text-transparent tracking-tight">
+          <h1 className="text-6xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent tracking-tight">
             AI Code Reviewer
           </h1>
-          <p className="text-xl text-muted-foreground/90 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-xl text-foreground/80 max-w-2xl mx-auto leading-relaxed">
             Get instant code reviews and suggestions powered by AI. Choose a review mode and let our AI
             help you write better code.
           </p>
         </motion.div>
 
         <div className="grid gap-8">
-          <Card className="border-primary/20 shadow-xl backdrop-blur-sm bg-background/95">
+          <Card className="border-2 border-primary/10 shadow-2xl bg-white/5 backdrop-blur-sm">
             <CardHeader className="pb-4 space-y-6">
-              <CardTitle className="text-3xl font-bold text-primary/90">Code Input</CardTitle>
+              <CardTitle className="text-3xl font-bold text-foreground">Code Input</CardTitle>
               <div className="flex flex-wrap gap-4">
                 <Select value={language} onValueChange={setLanguage}>
-                  <SelectTrigger className="w-[180px] border-primary/30 hover:border-primary/50 transition-colors">
+                  <SelectTrigger className="w-[180px] bg-background/80 border-primary/20 hover:border-primary/40 transition-colors">
                     <SelectValue placeholder="Select language" />
                   </SelectTrigger>
                   <SelectContent>
@@ -136,7 +136,7 @@ export default function Home() {
                 </Select>
 
                 <Select value={mode} onValueChange={(value) => setMode(value as ReviewMode)}>
-                  <SelectTrigger className="w-[180px] border-primary/30 hover:border-primary/50 transition-colors">
+                  <SelectTrigger className="w-[180px] bg-background/80 border-primary/20 hover:border-primary/40 transition-colors">
                     <SelectValue placeholder="Select review mode" />
                   </SelectTrigger>
                   <SelectContent>
@@ -150,15 +150,18 @@ export default function Home() {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              <CodeEditor code={code} onChange={setCode} />
-              <div className="flex justify-between items-center pt-2">
+              <div className="bg-background/40 rounded-lg p-1">
+                <CodeEditor code={code} onChange={setCode} />
+              </div>
+              <div className="flex justify-between items-center pt-4">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setSaveReview(!saveReview)}
                   className={`
-                    ${saveReview ? "bg-primary/10 border-primary/40" : "border-primary/30"}
+                    ${saveReview ? "bg-primary/10 border-primary/40" : "border-primary/20"}
                     hover:bg-primary/15 hover:border-primary/50 transition-all duration-200
+                    text-foreground/90
                   `}
                 >
                   <Save className={`h-4 w-4 mr-2 ${saveReview ? "text-primary" : ""}`} />
@@ -168,7 +171,8 @@ export default function Home() {
                   onClick={handleReview}
                   disabled={reviewMutation.isPending || !code.trim()}
                   size="lg"
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 px-8"
+                  className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-xl 
+                    hover:shadow-2xl transition-all duration-200 px-8 py-6"
                 >
                   {reviewMutation.isPending ? (
                     <>
@@ -191,28 +195,31 @@ export default function Home() {
                 exit={{ opacity: 0, y: -20 }}
                 className="transition-all duration-300"
               >
-                <Card className="border-primary/20 shadow-xl backdrop-blur-sm bg-background/95">
+                <Card className="border-2 border-primary/10 shadow-2xl bg-white/5 backdrop-blur-sm">
                   <CardHeader>
-                    <CardTitle className="text-3xl font-bold text-primary/90">Review Results</CardTitle>
+                    <CardTitle className="text-3xl font-bold text-foreground">Review Results</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <Tabs defaultValue="suggestions" className="w-full">
-                      <TabsList className="w-full justify-start mb-6 bg-primary/10 p-1 rounded-lg">
+                      <TabsList className="w-full justify-start mb-6 bg-background rounded-lg p-1">
                         <TabsTrigger 
                           value="suggestions" 
-                          className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-200"
+                          className="data-[state=active]:bg-primary data-[state=active]:text-white 
+                            data-[state=active]:shadow-lg transition-all duration-200 px-6"
                         >
                           Suggestions
                         </TabsTrigger>
                         <TabsTrigger 
                           value="improvements"
-                          className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-200"
+                          className="data-[state=active]:bg-primary data-[state=active]:text-white 
+                            data-[state=active]:shadow-lg transition-all duration-200 px-6"
                         >
                           Improvements
                         </TabsTrigger>
                         <TabsTrigger 
                           value="security"
-                          className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-200"
+                          className="data-[state=active]:bg-primary data-[state=active]:text-white 
+                            data-[state=active]:shadow-lg transition-all duration-200 px-6"
                         >
                           Security
                         </TabsTrigger>
@@ -247,7 +254,7 @@ export default function Home() {
 
           {reviewMutation.isError && (
             <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
-              <AlertDescription className="text-destructive dark:text-destructive/90">
+              <AlertDescription className="text-destructive font-medium">
                 {reviewMutation.error?.message || "An error occurred while reviewing the code"}
               </AlertDescription>
             </Alert>
