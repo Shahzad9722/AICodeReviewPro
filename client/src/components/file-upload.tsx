@@ -20,22 +20,34 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
     const newFiles: { [key: string]: FileContent } = {};
 
     const processFile = async (file: File, path = '') => {
-      const content = await file.text();
-      const filePath = path ? `${path}/${file.name}` : file.name;
-      newFiles[filePath] = { path: filePath, content };
+      try {
+        const content = await file.text();
+        const filePath = path ? `${path}/${file.name}` : file.name;
+        newFiles[filePath] = { path: filePath, content };
+      } catch (error) {
+        console.error(`Error processing file ${file.name}:`, error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: `Failed to process file ${file.name}`,
+        });
+      }
     };
 
     const processEntry = async (entry: FileSystemEntry, path = '') => {
       if (entry.isFile) {
         const fileEntry = entry as FileSystemFileEntry;
-        fileEntry.file(file => {
-          filePromises.push(processFile(file, path));
+        await new Promise<void>((resolve) => {
+          fileEntry.file(async (file) => {
+            await processFile(file, path);
+            resolve();
+          });
         });
       } else if (entry.isDirectory && allowDirectories) {
         const dirEntry = entry as FileSystemDirectoryEntry;
         const dirReader = dirEntry.createReader();
-        await new Promise<void>(resolve => {
-          dirReader.readEntries(async entries => {
+        await new Promise<void>((resolve) => {
+          dirReader.readEntries(async (entries) => {
             for (const entry of entries) {
               await processEntry(entry, path ? `${path}/${dirEntry.name}` : dirEntry.name);
             }
@@ -45,25 +57,40 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
       }
     };
 
-    if (items instanceof DataTransferItemList) {
-      for (const item of Array.from(items)) {
-        if (item.webkitGetAsEntry) {
-          const entry = item.webkitGetAsEntry();
-          if (entry) {
-            await processEntry(entry);
+    try {
+      if (items instanceof DataTransferItemList) {
+        for (const item of Array.from(items)) {
+          if (item.webkitGetAsEntry) {
+            const entry = item.webkitGetAsEntry();
+            if (entry) {
+              await processEntry(entry);
+            }
           }
         }
+      } else {
+        for (const file of Array.from(items)) {
+          await processFile(file);
+        }
       }
-    } else {
-      for (const file of Array.from(items)) {
-        await processFile(file);
-      }
-    }
 
-    await Promise.all(filePromises);
-    setSelectedFiles(prev => ({ ...prev, ...newFiles }));
-    onFilesSelected(Object.values(newFiles));
-  }, [onFilesSelected, allowDirectories]);
+      await Promise.all(filePromises);
+      const updatedFiles = { ...selectedFiles, ...newFiles };
+      setSelectedFiles(updatedFiles);
+      onFilesSelected(Object.values(updatedFiles));
+
+      toast({
+        title: "Success",
+        description: `${Object.keys(newFiles).length} file(s) uploaded successfully`,
+      });
+    } catch (error) {
+      console.error("Error handling files:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to process files",
+      });
+    }
+  }, [onFilesSelected, allowDirectories, selectedFiles, toast]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -89,7 +116,7 @@ export default function FileUpload({ onFilesSelected, allowDirectories = false }
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
-    if (e.target.files) {
+    if (e.target.files && e.target.files.length > 0) {
       await handleFiles(e.target.files);
     }
   };
