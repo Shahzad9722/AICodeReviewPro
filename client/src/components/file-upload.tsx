@@ -170,8 +170,6 @@ export default function FileUpload({ onFilesSelected }: FileUploadProps) {
           <input
             type="file"
             multiple
-            directory=""
-            webkitdirectory=""
             className="hidden"
             onChange={handleChange}
             id="file-upload"

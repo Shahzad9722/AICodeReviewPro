@@ -18,6 +18,13 @@ export function registerRoutes(app: Express): Server {
         save = false 
       } = req.body;
 
+      console.log("Received review request:", {
+        filesCount: files?.length,
+        name,
+        mode,
+        language
+      });
+
       if (!files || !Array.isArray(files) || files.length === 0) {
         return res.status(400).json({
           message: "At least one file is required for review",
@@ -30,7 +37,9 @@ export function registerRoutes(app: Express): Server {
         });
       }
 
+      console.log("Analyzing files...");
       const analysis = await analyzeCode(files, mode as ReviewMode, language);
+      console.log("Analysis completed");
 
       if (save) {
         // Save the review and results
