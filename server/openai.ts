@@ -4,48 +4,41 @@ import type { CodeReviewResponse, FileContent } from "../client/src/lib/openai";
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Update the review prompts to encourage code block responses
 const REVIEW_PROMPTS = {
-  general: `You are an expert code reviewer analyzing code. For each point, provide specific code examples using markdown code blocks. Focus on:
-1. Key code suggestions with before/after examples
-2. Performance improvements with code samples
-3. Security considerations with fixes
-4. Dependencies recommendations
-5. Architecture suggestions with implementation examples`,
+  general: `You are an expert code reviewer analyzing code. For each suggestion:
+1. Specify the line numbers affected (e.g., "On line 42" or "Lines 15-20")
+2. Provide a clear description of what should be changed
+3. Include the suggested code in a markdown code block
+4. Focus on the most important improvements first`,
 
-  performance: `You are a performance optimization expert. For each suggestion, include code examples in markdown format. Focus on:
-1. Time complexity and efficiency improvements
-2. Memory usage optimization patterns
-3. Async/await and Promise optimizations
-4. Caching implementations
-5. Bundle size reduction techniques`,
+  performance: `You are a performance optimization expert. For each suggestion:
+1. Identify specific lines where performance can be improved
+2. Explain the performance impact
+3. Provide optimized code in a markdown code block
+4. Focus on the most significant performance gains`,
 
-  security: `You are a security expert. For each issue, provide secure code alternatives in markdown format. Focus on:
-1. Common vulnerability fixes
-2. Input validation implementations
-3. Authentication and authorization improvements
-4. Data exposure prevention
-5. Dependency security updates`,
+  security: `You are a security expert. For each suggestion:
+1. Identify lines containing security vulnerabilities
+2. Explain the security risk
+3. Provide secure code alternatives in a markdown code block
+4. Prioritize critical security issues`,
 
-  "clean-code": `You are a clean code expert. For each suggestion, show before/after code examples in markdown. Focus on:
-1. Code organization improvements
-2. Better naming conventions
-3. Function responsibility separation
-4. Code duplication elimination
-5. Consistent coding style`,
+  "clean-code": `You are a clean code expert. For each suggestion:
+1. Point out specific lines that could be more readable
+2. Explain how the code can be cleaner
+3. Show the improved code in a markdown code block
+4. Focus on maintainability and clarity`,
 
-  architecture: `You are a software architect. Provide specific implementation examples in markdown format. Focus on:
-1. Application architecture improvements
-2. Code modularity enhancements
-3. Data flow optimization
-4. API design best practices
-5. Scalability implementations`
+  architecture: `You are a software architect. For each suggestion:
+1. Identify specific code sections that could be better architected
+2. Explain the architectural improvement
+3. Provide implementation examples in markdown code blocks
+4. Focus on scalability and maintainability`
 };
 
 export type ReviewMode = keyof typeof REVIEW_PROMPTS;
 
 function createFileContext(files: FileContent[]): string {
-  // Only include relevant file content - skip binary files, limit size
   return files
     .filter(file => {
       const ext = file.path.split('.').pop()?.toLowerCase();
@@ -77,34 +70,28 @@ Analyze the code and respond with a JSON object containing arrays of markdown-fo
 
 {
   "suggestions": [
-    "Suggestion 1 with code blocks",
-    "Suggestion 2 with code blocks"
+    "On line 42: Use const instead of let for immutable values\n\`\`\`javascript\nconst user = fetchUser();\n\`\`\`"
   ],
   "improvements": [
-    "Improvement 1 with code blocks",
-    "Improvement 2 with code blocks"
+    "Lines 15-20: Simplify this loop using Array.map\n\`\`\`javascript\nconst results = items.map(item => transform(item));\n\`\`\`"
   ],
   "security": [
-    "Security issue 1 with code blocks",
-    "Security issue 2 with code blocks"
+    "On line 67: Sanitize user input to prevent XSS\n\`\`\`javascript\nconst sanitizedInput = DOMPurify.sanitize(userInput);\n\`\`\`"
   ],
   "dependencies": [
-    "Dependency recommendation 1",
-    "Dependency recommendation 2"
+    "Consider using lodash for consistent array manipulation"
   ],
   "architecture": [
-    "Architecture suggestion 1 with code blocks",
-    "Architecture suggestion 2 with code blocks"
+    "Lines 90-120: Extract this logic into a separate service\n\`\`\`javascript\nclass UserService {\n  async fetchUser() {\n    // ...\n  }\n}\n\`\`\`"
   ]
 }
 
 Guidelines for suggestions:
-- Include file paths in quotes (e.g. "src/app.ts")
-- Use markdown code blocks (\`\`\`) for code examples
-- Show both original and improved code when suggesting changes
-- Mention if suggesting full file replacements
-- Keep each suggestion under 150 words
-- Focus on the most important issues
+- Always specify line numbers for code changes
+- Include clear explanations before code blocks
+- Show only the relevant code that needs to change
+- Keep suggestions focused and actionable
+- Limit each suggestion to 150 words
 
 Language: ${language}
 Files to analyze: ${files.length}
