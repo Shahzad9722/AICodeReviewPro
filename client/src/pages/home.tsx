@@ -18,10 +18,15 @@ import type { ReviewMode } from "@/lib/openai";
 import FileUpload from "@/components/file-upload";
 import type { FileContent } from "@/lib/openai";
 
-const extractFileInfoFromMarkdown = (markdown: string): { path?: string; code?: string } => {
+const extractFileInfoFromMarkdown = (markdown: string): { path?: string; code?: string; isFullFile?: boolean } => {
   // Look for file paths in various formats: quoted, backticked, or plain
   const filePathMatch = markdown.match(/(?:['"`])([^'"`]+\.[a-zA-Z]+)(?:['"`])/);
   const filePath = filePathMatch ? filePathMatch[1] : undefined;
+
+  // Check if this is a full file replacement or partial change
+  const isFullFile = markdown.toLowerCase().includes("entire file") || 
+                    markdown.toLowerCase().includes("full file") ||
+                    markdown.toLowerCase().includes("complete file");
 
   // More flexible code block regex that handles various formats:
   // 1. With language specification
@@ -35,11 +40,11 @@ const extractFileInfoFromMarkdown = (markdown: string): { path?: string; code?: 
     // Fallback: Try to find code between backticks if no code block is found
     const inlineCodeMatch = markdown.match(/`([^`]+)`/);
     if (inlineCodeMatch) {
-      return { path: filePath, code: inlineCodeMatch[1].trim() };
+      return { path: filePath, code: inlineCodeMatch[1].trim(), isFullFile };
     }
   }
 
-  return { path: filePath, code };
+  return { path: filePath, code, isFullFile };
 };
 
 const LANGUAGES = [
@@ -178,7 +183,7 @@ export default function Home() {
   };
 
   const handleApplyChange = (suggestion: string) => {
-    const { path: suggestedPath, code: codeSnippet } = extractFileInfoFromMarkdown(suggestion);
+    const { path: suggestedPath, code: codeSnippet, isFullFile } = extractFileInfoFromMarkdown(suggestion);
 
     if (!codeSnippet) {
       toast({
@@ -190,7 +195,47 @@ export default function Home() {
     }
 
     if (inputMode === "paste") {
-      setPastedCode(codeSnippet);
+      // For paste mode, try to intelligently merge changes
+      if (isFullFile) {
+        setPastedCode(codeSnippet);
+      } else {
+        // Try to merge the changes
+        const lines = pastedCode.split('\n');
+        const snippetLines = codeSnippet.split('\n');
+
+        // If the snippet is small compared to the original, treat it as a partial change
+        if (snippetLines.length < lines.length / 2) {
+          // Find a matching context in the original code
+          let bestMatchIndex = -1;
+          let bestMatchScore = 0;
+
+          for (let i = 0; i < lines.length - snippetLines.length + 1; i++) {
+            let score = 0;
+            for (let j = 0; j < snippetLines.length; j++) {
+              if (lines[i + j].trim() === snippetLines[j].trim()) {
+                score++;
+              }
+            }
+            if (score > bestMatchScore) {
+              bestMatchScore = score;
+              bestMatchIndex = i;
+            }
+          }
+
+          if (bestMatchIndex !== -1) {
+            const newLines = [...lines];
+            newLines.splice(bestMatchIndex, snippetLines.length, ...snippetLines);
+            setPastedCode(newLines.join('\n'));
+          } else {
+            // If no good match found, append the changes
+            setPastedCode(pastedCode + '\n\n' + codeSnippet);
+          }
+        } else {
+          // If the snippet is large, treat it as a full replacement
+          setPastedCode(codeSnippet);
+        }
+      }
+
       toast({
         title: "Success",
         description: "Applied changes to the code",
